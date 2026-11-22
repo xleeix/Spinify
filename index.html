@@ -1,0 +1,2772 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Spinify</title>
+  <meta name="description" content="Spinify — مشغل الأسطوانة بتصميم Liquid Glass وتصدير فيديو 1:1 لدائرة تيليجرام بتطوير xleeix." />
+  <meta property="og:title" content="Spinify" />
+  <meta property="og:description" content="Spinify — مشغل الأسطوانة بتصميم Liquid Glass وتصدير فيديو 1:1 لدائرة تيليجرام." />
+  <meta name="theme-color" content="#090a0c" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spinify" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="./pwa-512x512.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg-dark: #090a0c;
+      --bg-mid: #14171c;
+      --glass-bg: rgba(255, 255, 255, 0.06);
+      --glass-bg-strong: rgba(255, 255, 255, 0.11);
+      --glass-border: rgba(255, 255, 255, 0.16);
+      --glass-highlight: rgba(255, 255, 255, 0.28);
+      --text-main: #f5f7fa;
+      --text-muted: #a3abb8;
+      --silver: #d4d8df;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "IBM Plex Sans Arabic", "Readex Pro", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(220, 226, 236, 0.14), transparent 42%),
+        radial-gradient(circle at 80% 80%, rgba(150, 160, 175, 0.11), transparent 45%),
+        linear-gradient(160deg, var(--bg-dark), var(--bg-mid) 55%, #0c0e12);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .splash-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(215, 224, 238, 0.14), transparent 52%),
+        linear-gradient(160deg, #07080b, #12151b 55%, #08090c);
+      transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .splash-overlay.is-leaving {
+      opacity: 0;
+      transform: scale(1.04);
+      pointer-events: none;
+    }
+
+    .splash-logo-wrap {
+      width: 112px;
+      height: 112px;
+      border-radius: 28px;
+      padding: 4px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.04));
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.78),
+        0 0 36px rgba(212, 220, 234, 0.14);
+      animation: splashLogoIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .splash-logo-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 24px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .splash-title {
+      font-family: "Readex Pro", "IBM Plex Sans Arabic", sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: linear-gradient(180deg, #ffffff 0%, #c6cdd9 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      opacity: 0;
+      animation: splashTextIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards;
+    }
+
+    .splash-credit {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      opacity: 0;
+      animation: splashTextIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.38s forwards;
+    }
+
+    @keyframes splashLogoIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.72) rotate(-55deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    @keyframes splashTextIn {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 440px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(22px) saturate(140%);
+      -webkit-backdrop-filter: blur(22px) saturate(140%);
+      border: 1px solid var(--glass-border);
+      border-top-color: var(--glass-highlight);
+      border-radius: 28px;
+      padding: 20px 20px 18px;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      transform: translateY(18px) scale(0.985);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .app-shell.is-entered {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .splash-logo-wrap,
+      .splash-title,
+      .splash-credit,
+      .splash-overlay,
+      .app-shell {
+        animation: none !important;
+        transition: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    }
+
+    .brand-name {
+      font-family: "Readex Pro", "IBM Plex Sans Arabic", sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--text-main);
+    }
+
+    .brand-author {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      direction: ltr;
+    }
+
+    .brand-author:hover {
+      color: var(--silver);
+    }
+
+    .header-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .glass-input {
+      width: 100%;
+      background: rgba(10, 12, 16, 0.55);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .glass-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .glass-input:focus {
+      border-color: var(--silver);
+      background: rgba(20, 24, 30, 0.72);
+    }
+
+    .turntable-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+    }
+
+    .vinyl-stage {
+      position: relative;
+      width: 256px;
+      height: 256px;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      padding: 9px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.03));
+      border: 1px solid var(--glass-border);
+      box-shadow:
+        0 20px 46px rgba(0, 0, 0, 0.8),
+        inset 0 0 18px rgba(255, 255, 255, 0.08);
+    }
+
+    .vinyl-disc {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(
+          circle at center,
+          #0a0b0e 0%,
+          #0a0b0e 26%,
+          rgba(255, 255, 255, 0.045) 26.4%,
+          #07080b 27%,
+          #0b0d11 38%,
+          #06070a 38.6%,
+          #0f1217 48%,
+          #07080b 48.5%,
+          #0e1116 61%,
+          #06070a 61.5%,
+          #101319 73%,
+          #07080b 73.5%,
+          #0c0e13 94%,
+          #1b1f26 98%,
+          #07080a 100%
+        );
+      box-shadow:
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.16),
+        inset 0 0 14px rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(0deg);
+      will-change: transform;
+    }
+
+    .vinyl-cover {
+      width: 55%;
+      height: 55%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      box-shadow:
+        0 0 0 3px rgba(0, 0, 0, 0.62),
+        inset 0 0 12px rgba(0, 0, 0, 0.35);
+      background: #e9e6de;
+      display: none;
+      position: relative;
+      z-index: 2;
+    }
+
+    .vinyl-cover.has-image {
+      display: block;
+    }
+
+    .vinyl-placeholder {
+      width: 42%;
+      height: 42%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 42% 38%, #f5f3ee 0%, #ebe8e0 72%, #dcd8ce 100%);
+      border: 1px solid rgba(0, 0, 0, 0.35);
+      box-shadow:
+        0 0 0 3px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 11px rgba(0, 0, 0, 0.025),
+        inset 0 0 0 12px rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+      font-size: 9.5px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: rgba(24, 27, 34, 0.62);
+      position: relative;
+      z-index: 2;
+    }
+
+    .vinyl-cover.has-image + .vinyl-placeholder {
+      display: none;
+    }
+
+    .vinyl-grooves {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 3;
+      background:
+        repeating-radial-gradient(
+          circle at center,
+          transparent 0px,
+          transparent 1.4px,
+          rgba(255, 255, 255, 0.045) 1.8px,
+          transparent 2.4px
+        );
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 21%, #000 22.5%, #000 98%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 21%, #000 22.5%, #000 98%, transparent 100%);
+    }
+
+    .vinyl-stage.has-cover.style-vinyl-classic .vinyl-grooves {
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 27.5%, #000 29%, #000 98%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 27.5%, #000 29%, #000 98%, transparent 100%);
+    }
+
+    .cd-hub {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36.2%;
+      height: 36.2%;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 4;
+      background:
+        radial-gradient(
+          circle at center,
+          transparent 0%,
+          transparent 38%,
+          rgba(255, 255, 255, 0.42) 38.8%,
+          rgba(215, 222, 234, 0.22) 41%,
+          rgba(255, 255, 255, 0.14) 51%,
+          rgba(0, 0, 0, 0.25) 52.5%,
+          rgba(255, 255, 255, 0.36) 54%,
+          rgba(232, 238, 248, 0.22) 68%,
+          rgba(205, 214, 228, 0.28) 84%,
+          rgba(255, 255, 255, 0.48) 95.5%,
+          rgba(255, 255, 255, 0.16) 100%
+        );
+      box-shadow:
+        0 0 0 1.5px rgba(255, 255, 255, 0.42),
+        0 0 14px rgba(0, 0, 0, 0.38),
+        inset 0 0 8px rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(1.5px);
+      -webkit-backdrop-filter: blur(1.5px);
+    }
+
+    .glass-bezel {
+      display: none;
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 3;
+      background:
+        radial-gradient(
+          circle at center,
+          transparent 0%,
+          transparent 80.5%,
+          rgba(255, 255, 255, 0.28) 81.2%,
+          rgba(205, 216, 232, 0.14) 84%,
+          rgba(255, 255, 255, 0.08) 91%,
+          rgba(255, 255, 255, 0.26) 98%,
+          rgba(255, 255, 255, 0.4) 100%
+        );
+      box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+    }
+
+    .vinyl-sheen {
+      position: absolute;
+      inset: 9px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+      background:
+        conic-gradient(
+          from 16deg at 50% 50%,
+          rgba(255, 255, 255, 0) 0deg,
+          rgba(220, 228, 240, 0.08) 18deg,
+          rgba(255, 255, 255, 0.28) 32deg,
+          rgba(230, 238, 248, 0.14) 46deg,
+          rgba(255, 255, 255, 0.02) 64deg,
+          rgba(255, 255, 255, 0) 110deg,
+          rgba(200, 212, 230, 0.04) 142deg,
+          rgba(255, 255, 255, 0) 178deg,
+          rgba(220, 228, 240, 0.09) 198deg,
+          rgba(255, 255, 255, 0.3) 214deg,
+          rgba(230, 238, 248, 0.14) 228deg,
+          rgba(255, 255, 255, 0.02) 246deg,
+          rgba(255, 255, 255, 0) 295deg,
+          rgba(200, 212, 230, 0.04) 328deg,
+          rgba(255, 255, 255, 0) 360deg
+        );
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 21%, #000 22%, #000 98%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 21%, #000 22%, #000 98%, transparent 100%);
+    }
+
+    .vinyl-stage.has-cover.style-vinyl-classic .vinyl-sheen {
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 27.5%, #000 28.5%, #000 98%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 27.5%, #000 28.5%, #000 98%, transparent 100%);
+    }
+
+    .spindle-hole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #191d24 0%, #090a0d 70%);
+      border: 1.5px solid rgba(110, 118, 132, 0.72);
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
+        inset 0 1px 2px rgba(0, 0, 0, 0.9);
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    /* Style 1: Full CD (matches Telegram circle reference) */
+    .vinyl-stage.style-cd-full .vinyl-disc {
+      background:
+        conic-gradient(
+          from 35deg at 50% 50%,
+          #9ca5b4 0deg,
+          #dfe5ef 48deg,
+          #aeb7c6 95deg,
+          #7b8494 148deg,
+          #d7dee9 205deg,
+          #8f98a8 265deg,
+          #e3e8f0 320deg,
+          #9ca5b4 360deg
+        );
+      box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, 0.42),
+        inset 0 0 18px rgba(0, 0, 0, 0.45);
+    }
+
+    .vinyl-stage.style-cd-full .vinyl-cover {
+      width: 100%;
+      height: 100%;
+      border: none;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .vinyl-stage.style-cd-full .vinyl-placeholder {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 20px;
+      padding-top: 58%;
+      align-items: flex-start;
+      color: rgba(18, 22, 30, 0.76);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .vinyl-stage.style-cd-full .vinyl-grooves {
+      display: none;
+    }
+
+    .vinyl-stage.style-cd-full .cd-hub {
+      display: block;
+    }
+
+    .vinyl-stage.style-cd-full .vinyl-sheen {
+      opacity: 0.58;
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 13.5%, #000 14.5%, #000 99%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 13.5%, #000 14.5%, #000 99%, transparent 100%);
+    }
+
+    .vinyl-stage.style-cd-full .spindle-hole {
+      width: 13.8%;
+      height: 13.8%;
+      background: radial-gradient(circle at 45% 40%, #14171e 0%, #090a0e 85%);
+      border: 2px solid rgba(242, 246, 252, 0.78);
+      box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.25),
+        inset 0 2px 7px rgba(0, 0, 0, 0.92);
+    }
+
+    /* Style 3: Full Cover Vinyl with Translucent Grooves */
+    .vinyl-stage.style-vinyl-full .vinyl-disc {
+      background: radial-gradient(circle at center, #1b2029 0%, #0d1016 70%, #07080b 100%);
+    }
+
+    .vinyl-stage.style-vinyl-full .vinyl-cover {
+      width: 100%;
+      height: 100%;
+      border: none;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .vinyl-stage.style-vinyl-full .vinyl-placeholder {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #232833 0%, #11141b 72%, #090b0f 100%);
+      border: none;
+      box-shadow: none;
+      padding-top: 62%;
+      align-items: flex-start;
+      color: rgba(245, 247, 250, 0.74);
+      font-size: 11px;
+    }
+
+    .vinyl-stage.style-vinyl-full .vinyl-grooves {
+      background:
+        repeating-radial-gradient(
+          circle at center,
+          transparent 0px,
+          transparent 1.6px,
+          rgba(255, 255, 255, 0.08) 2px,
+          rgba(0, 0, 0, 0.14) 2.6px
+        );
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 12%, #000 13.5%, #000 98.5%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 12%, #000 13.5%, #000 98.5%, transparent 100%);
+    }
+
+    .vinyl-stage.style-vinyl-full .vinyl-sheen {
+      opacity: 0.75;
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 6%, #000 7%, #000 99%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 6%, #000 7%, #000 99%, transparent 100%);
+    }
+
+    /* Style 4: Liquid Glass Bezel Disc */
+    .vinyl-stage.style-glass-disc .vinyl-disc {
+      background: radial-gradient(circle at center, #181c24 0%, #0d1016 78%, #1e2430 100%);
+    }
+
+    .vinyl-stage.style-glass-disc .vinyl-cover {
+      width: 81%;
+      height: 81%;
+      border: 1.5px solid rgba(255, 255, 255, 0.32);
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.55);
+    }
+
+    .vinyl-stage.style-glass-disc .vinyl-placeholder {
+      width: 81%;
+      height: 81%;
+      background: radial-gradient(circle at 38% 35%, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.08);
+      padding-top: 58%;
+      align-items: flex-start;
+      color: rgba(245, 247, 250, 0.8);
+      font-size: 11px;
+    }
+
+    .vinyl-stage.style-glass-disc .vinyl-grooves {
+      display: none;
+    }
+
+    .vinyl-stage.style-glass-disc .glass-bezel {
+      display: block;
+    }
+
+    .vinyl-stage.style-glass-disc .vinyl-sheen {
+      opacity: 0.78;
+      -webkit-mask-image: radial-gradient(circle at center, transparent 0%, transparent 6%, #000 7%, #000 99%, transparent 100%);
+      mask-image: radial-gradient(circle at center, transparent 0%, transparent 6%, #000 7%, #000 99%, transparent 100%);
+    }
+
+    .style-toggle {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .style-btn {
+      padding: 7px 4px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .style-btn.active {
+      background: rgba(255, 255, 255, 0.18);
+      color: var(--text-main);
+    }
+
+    .display-titles {
+      text-align: center;
+      min-height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .title-main {
+      font-family: "Readex Pro", "IBM Plex Sans Arabic", sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+      word-break: break-word;
+      letter-spacing: 0;
+    }
+
+    .title-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      word-break: break-word;
+    }
+
+    .controls-panel {
+      background: rgba(12, 14, 18, 0.45);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--silver);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #9aa3b2, #f5f7fa);
+      transition: width 0.15s linear;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .glass-btn {
+      flex: 1;
+      padding: 11px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg-strong);
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s, border-color 0.2s;
+      text-align: center;
+    }
+
+    .glass-btn:hover {
+      background: rgba(255, 255, 255, 0.17);
+      border-color: var(--silver);
+    }
+
+    .glass-btn:active {
+      transform: scale(0.98);
+    }
+
+    .glass-btn.primary {
+      background: linear-gradient(135deg, rgba(255,255,255,0.24), rgba(180,188,200,0.12));
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .export-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .glass-btn.download {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(212,216,223,0.24), rgba(255,255,255,0.07));
+      border-color: rgba(255, 255, 255, 0.32);
+    }
+
+    .glass-btn.share {
+      display: none;
+      flex: 0.72;
+      background: linear-gradient(135deg, rgba(255,255,255,0.28), rgba(190,198,212,0.14));
+      border-color: rgba(255, 255, 255, 0.42);
+      color: var(--text-main);
+    }
+
+    .glass-btn.share.visible {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      animation: sharePopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes sharePopIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .glass-btn.recording {
+      border-color: #f5f7fa;
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 7px 8px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .mode-btn.active {
+      background: rgba(255, 255, 255, 0.18);
+      color: var(--text-main);
+    }
+
+    .range-box {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .range-box.active {
+      display: flex;
+    }
+
+    .range-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .range-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .range-input {
+      width: 100%;
+      background: rgba(10, 12, 16, 0.65);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 7px 10px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .range-input:focus {
+      border-color: var(--silver);
+    }
+
+    .loop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .loop-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--silver);
+      user-select: none;
+    }
+
+    .switch-btn {
+      position: relative;
+      width: 46px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .switch-btn[aria-checked="true"] {
+      background: rgba(245, 247, 250, 0.88);
+      border-color: #f5f7fa;
+    }
+
+    .switch-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #f5f7fa;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+    }
+
+    .switch-btn[aria-checked="true"] .switch-thumb {
+      transform: translateX(20px);
+      background: #090a0c;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .option-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--silver);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .option-pills {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 2px;
+      gap: 3px;
+    }
+
+    .option-btn {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .option-btn.active {
+      background: rgba(255, 255, 255, 0.18);
+      color: var(--text-main);
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .upload-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--glass-border);
+      color: var(--silver);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      text-align: center;
+    }
+
+    .upload-label:hover {
+      background: rgba(255, 255, 255, 0.13);
+      border-color: var(--silver);
+    }
+
+    .status-note {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 16px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .footer-credit {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .footer-credit a {
+      color: var(--silver);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer-credit a:hover {
+      text-decoration: underline;
+    }
+
+    .tg-direct-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: var(--text-main) !important;
+      font-size: 11.5px;
+      font-weight: 600;
+      direction: ltr;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .tg-direct-link:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--silver);
+      text-decoration: none !important;
+    }
+
+    .install-wrap {
+      display: none;
+    }
+
+    .install-wrap.visible {
+      display: flex;
+    }
+
+    .ios-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(5, 6, 8, 0.72);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .ios-modal.open {
+      display: flex;
+    }
+
+    .ios-modal-card {
+      width: 100%;
+      max-width: 340px;
+      background: rgba(20, 24, 30, 0.94);
+      border: 1px solid var(--glass-border);
+      border-radius: 22px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .ios-modal-title {
+      font-family: "Readex Pro", "IBM Plex Sans Arabic", sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .ios-modal-body {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="splashOverlay" class="splash-overlay" aria-hidden="true">
+    <div class="splash-logo-wrap">
+      <img src="./spinify-logo.png" alt="Spinify" class="splash-logo-img" referrerPolicy="no-referrer" />
+    </div>
+    <div class="splash-title">Spinify</div>
+    <div class="splash-credit">by xleeix</div>
+  </div>
+
+  <main id="appShell" class="app-shell">
+    <header class="brand-bar">
+      <div class="brand-identity">
+        <img src="./spinify-logo.png" alt="Spinify" class="brand-icon" referrerPolicy="no-referrer" />
+        <span class="brand-name">Spinify</span>
+      </div>
+      <a class="brand-author" href="https://t.me/xleeix" target="_blank" rel="noopener noreferrer">@xleeix</a>
+    </header>
+
+    <section class="header-inputs">
+      <input
+        type="text"
+        id="mainTitleInput"
+        class="glass-input"
+        placeholder="اكتب العنوان (اختياري)"
+        autocomplete="off"
+      />
+      <input
+        type="text"
+        id="subTitleInput"
+        class="glass-input"
+        placeholder="اكتب عنواناً فرعياً أو ملاحظة (اختياري)"
+        autocomplete="off"
+      />
+    </section>
+
+    <section class="turntable-wrap">
+      <div id="vinylStage" class="vinyl-stage style-cd-full">
+        <div id="vinylDisc" class="vinyl-disc">
+          <img id="vinylCover" class="vinyl-cover" alt="غلاف الأسطوانة" />
+          <div class="vinyl-placeholder">ارفع صورة الغلاف</div>
+          <div class="vinyl-grooves"></div>
+          <div class="glass-bezel"></div>
+          <div class="cd-hub"></div>
+        </div>
+        <div class="vinyl-sheen"></div>
+        <div class="spindle-hole"></div>
+      </div>
+
+      <div class="style-toggle" role="group" aria-label="أنماط الأسطوانة">
+        <button type="button" class="style-btn active" data-disc-style="cd-full">قرص CD</button>
+        <button type="button" class="style-btn" data-disc-style="vinyl-classic">فينيل</button>
+        <button type="button" class="style-btn" data-disc-style="vinyl-full">فينيل كامل</button>
+        <button type="button" class="style-btn" data-disc-style="glass-disc">زجاجي</button>
+      </div>
+
+      <div class="display-titles">
+        <div id="displayMain" class="title-main"></div>
+        <div id="displaySub" class="title-sub"></div>
+      </div>
+    </section>
+
+    <section class="controls-panel">
+      <div class="mode-toggle">
+        <button type="button" id="modeOneMin" class="mode-btn active">دقيقة (01:00)</button>
+        <button type="button" id="modeFull" class="mode-btn">كامل المقطع</button>
+        <button type="button" id="modeCustom" class="mode-btn">تحديد وقت</button>
+      </div>
+
+      <div id="customRangeBox" class="range-box">
+        <div class="range-grid">
+          <label class="range-field">
+            البداية (مثال: 0:30 أو 2:15)
+            <input type="text" id="startSecInput" class="range-input" value="00:00" placeholder="00:00" />
+          </label>
+          <label class="range-field">
+            النهاية (مثال: 2:15)
+            <input type="text" id="endSecInput" class="range-input" value="01:00" placeholder="02:15" />
+          </label>
+        </div>
+      </div>
+
+      <div class="progress-row">
+        <span id="currentTimeText">00:00</span>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <span id="targetTimeText">01:00</span>
+      </div>
+
+      <div class="loop-row">
+        <span class="loop-label">تكرار المقطع (Loop)</span>
+        <button
+          type="button"
+          id="loopToggleBtn"
+          class="switch-btn"
+          role="switch"
+          aria-checked="false"
+          aria-label="تفعيل أو إيقاف تكرار المقطع"
+        >
+          <span class="switch-thumb"></span>
+        </button>
+      </div>
+
+      <div class="option-row">
+        <span class="option-label">سرعة الدوران</span>
+        <div class="option-pills" role="group" aria-label="سرعة دوران الأسطوانة">
+          <button type="button" class="option-btn" data-spin-speed="slow">بطيء</button>
+          <button type="button" class="option-btn active" data-spin-speed="normal">عادي</button>
+          <button type="button" class="option-btn" data-spin-speed="fast">سريع</button>
+        </div>
+      </div>
+
+      <div class="option-row">
+        <span class="option-label">حجم الحفظ</span>
+        <div class="option-pills" role="group" aria-label="حجم الفيديو عند الحفظ">
+          <button type="button" class="option-btn active" data-size-mode="full">المساحة الكاملة</button>
+          <button type="button" class="option-btn" data-size-mode="under19">أقل من 19MB</button>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button type="button" id="playToggleBtn" class="glass-btn primary">تشغيل</button>
+        <button type="button" id="resetBtn" class="glass-btn">إعادة</button>
+      </div>
+
+      <div class="export-row">
+        <button type="button" id="downloadVideoBtn" class="glass-btn download">تحميل فيديو</button>
+        <button type="button" id="shareVideoBtn" class="glass-btn share" aria-label="مشاركة الفيديو">مشاركة</button>
+      </div>
+      <div id="statusNote" class="status-note"></div>
+
+      <div class="upload-grid">
+        <label class="upload-label" for="imageInput">
+          اختيار صورة
+          <input type="file" id="imageInput" accept="image/*" />
+        </label>
+        <label class="upload-label" for="audioInput">
+          اختيار صوت
+          <input type="file" id="audioInput" accept="audio/*" />
+        </label>
+      </div>
+      <div id="installWrap" class="install-wrap">
+        <button type="button" id="installAppBtn" class="glass-btn">تثبيت كتطبيق على الجهاز</button>
+      </div>
+    </section>
+
+    <audio id="audioPlayer" preload="metadata"></audio>
+
+    <footer class="footer-credit">
+      <span>Spinify &copy; xleeix</span>
+      <a class="tg-direct-link" href="https://t.me/xleeix" target="_blank" rel="noopener noreferrer">تليغرام: @xleeix</a>
+    </footer>
+  </main>
+
+  <div id="iosInstallModal" class="ios-modal" role="dialog" aria-modal="true" aria-labelledby="iosModalTitle">
+    <div class="ios-modal-card">
+      <div id="iosModalTitle" class="ios-modal-title">تثبيت التطبيق على الآيفون والآيباد</div>
+      <div class="ios-modal-body">
+        1. اضغط على زر <strong>المشاركة (Share)</strong> في شريط Safari.<br />
+        2. اختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong>.
+      </div>
+      <button type="button" id="closeIosModalBtn" class="glass-btn primary">حسناً</button>
+    </div>
+  </div>
+
+  <script>
+    const mainTitleInput = document.getElementById("mainTitleInput");
+    const subTitleInput = document.getElementById("subTitleInput");
+    const displayMain = document.getElementById("displayMain");
+    const displaySub = document.getElementById("displaySub");
+
+    const vinylStage = document.getElementById("vinylStage");
+    const vinylDisc = document.getElementById("vinylDisc");
+    const vinylCover = document.getElementById("vinylCover");
+    const imageInput = document.getElementById("imageInput");
+    const audioInput = document.getElementById("audioInput");
+    const audioPlayer = document.getElementById("audioPlayer");
+
+    const playToggleBtn = document.getElementById("playToggleBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const loopToggleBtn = document.getElementById("loopToggleBtn");
+    const downloadVideoBtn = document.getElementById("downloadVideoBtn");
+    const shareVideoBtn = document.getElementById("shareVideoBtn");
+    const statusNote = document.getElementById("statusNote");
+    const modeOneMin = document.getElementById("modeOneMin");
+    const modeFull = document.getElementById("modeFull");
+    const modeCustom = document.getElementById("modeCustom");
+    const customRangeBox = document.getElementById("customRangeBox");
+    const startSecInput = document.getElementById("startSecInput");
+    const endSecInput = document.getElementById("endSecInput");
+
+    const currentTimeText = document.getElementById("currentTimeText");
+    const targetTimeText = document.getElementById("targetTimeText");
+    const progressFill = document.getElementById("progressFill");
+
+    const styleButtons = Array.from(document.querySelectorAll("[data-disc-style]"));
+    const speedButtons = Array.from(document.querySelectorAll("[data-spin-speed]"));
+    const sizeModeButtons = Array.from(document.querySelectorAll("[data-size-mode]"));
+
+    const SPEED_PRESETS = {
+      slow: { rotSec: 9, degPerSec: 40 },
+      normal: { rotSec: 5, degPerSec: 72 },
+      fast: { rotSec: 2.5, degPerSec: 144 },
+    };
+
+    let playMode = "onemin";
+    let selectedDiscStyle = "cd-full";
+    let selectedSpeed = "normal";
+    let selectedSizeMode = "full";
+    let isPlaying = false;
+    let isLoopEnabled = false;
+    let isExporting = false;
+    let exportAbortRequested = false;
+    let exportAbortController = null;
+    let lastExportedBlob = null;
+    let lastExportedFilename = "spinify-1x1.mp4";
+    let simTime = 0;
+    let discAngleDeg = 0;
+    let lastTick = null;
+    let rafId = null;
+
+    function setDiscStyle(nextStyle) {
+      selectedDiscStyle = nextStyle;
+      vinylStage.classList.remove("style-cd-full", "style-vinyl-classic", "style-vinyl-full", "style-glass-disc");
+      vinylStage.classList.add(`style-${nextStyle}`);
+      for (const btn of styleButtons) {
+        btn.classList.toggle("active", btn.dataset.discStyle === nextStyle);
+      }
+    }
+
+    function setSpinSpeed(nextSpeed) {
+      if (!SPEED_PRESETS[nextSpeed]) return;
+      selectedSpeed = nextSpeed;
+      for (const btn of speedButtons) {
+        btn.classList.toggle("active", btn.dataset.spinSpeed === nextSpeed);
+      }
+    }
+
+    function setExportSizeMode(nextSizeMode) {
+      selectedSizeMode = nextSizeMode === "under19" ? "under19" : "full";
+      for (const btn of sizeModeButtons) {
+        btn.classList.toggle("active", btn.dataset.sizeMode === selectedSizeMode);
+      }
+    }
+
+    for (const btn of styleButtons) {
+      btn.addEventListener("click", () => {
+        setDiscStyle(btn.dataset.discStyle);
+      });
+    }
+    for (const btn of speedButtons) {
+      btn.addEventListener("click", () => {
+        setSpinSpeed(btn.dataset.spinSpeed);
+      });
+    }
+    for (const btn of sizeModeButtons) {
+      btn.addEventListener("click", () => {
+        setExportSizeMode(btn.dataset.sizeMode);
+      });
+    }
+    setDiscStyle(selectedDiscStyle);
+    setSpinSpeed(selectedSpeed);
+    setExportSizeMode(selectedSizeMode);
+
+    let coverImgObj = null;
+    let uploadedAudioFile = null;
+    let currentAudioObjectUrl = null;
+    let decodedAudioCache = null;
+
+    function formatTime(sec) {
+      const safe = Math.max(0, Math.floor(sec));
+      const m = Math.floor(safe / 60);
+      const s = safe % 60;
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function parseTimeInput(rawVal, fallbackSec = 0) {
+      const str = String(rawVal || "").trim();
+      if (!str) return fallbackSec;
+      if (str.includes(":")) {
+        const parts = str.split(":");
+        const mins = Math.max(0, Number(parts[0]) || 0);
+        const secs = Math.max(0, Number(parts[1]) || 0);
+        return mins * 60 + secs;
+      }
+      const num = Number(str);
+      return Number.isFinite(num) && num >= 0 ? num : fallbackSec;
+    }
+
+    function hasLoadedAudio() {
+      return Boolean(audioPlayer.src && !audioPlayer.error && audioPlayer.readyState >= 1);
+    }
+
+    function getAudioDuration() {
+      if (hasLoadedAudio() && Number.isFinite(audioPlayer.duration) && audioPlayer.duration > 0) {
+        return audioPlayer.duration;
+      }
+      return 300;
+    }
+
+    function getRangeWindow() {
+      const dur = getAudioDuration();
+      if (playMode === "onemin") {
+        const start = 0;
+        const end = hasLoadedAudio() ? Math.min(60, dur) : 60;
+        return { start, end: Math.max(start + 1, end) };
+      }
+
+      if (playMode === "full") {
+        const start = 0;
+        const end = hasLoadedAudio() ? dur : 60;
+        return { start, end: Math.max(start + 1, end) };
+      }
+
+      const rawStart = parseTimeInput(startSecInput.value, 0);
+      const rawEnd = parseTimeInput(endSecInput.value, rawStart + 60);
+      const maxCap = hasLoadedAudio() ? dur : Math.max(rawEnd, rawStart + 60);
+      const start = Math.min(rawStart, Math.max(0, maxCap - 1));
+      const end = Math.max(start + 1, Math.min(rawEnd, maxCap));
+      return { start, end };
+    }
+
+    function updateTitles() {
+      displayMain.textContent = mainTitleInput.value.trim();
+      displaySub.textContent = subTitleInput.value.trim();
+    }
+
+    mainTitleInput.addEventListener("input", updateTitles);
+    subTitleInput.addEventListener("input", updateTitles);
+    updateTitles();
+
+    imageInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        vinylCover.src = reader.result;
+        vinylCover.classList.add("has-image");
+        vinylStage.classList.add("has-cover");
+        const img = new Image();
+        img.onload = () => { coverImgObj = img; };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    audioInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      uploadedAudioFile = file;
+      decodedAudioCache = null;
+      if (currentAudioObjectUrl) {
+        URL.revokeObjectURL(currentAudioObjectUrl);
+      }
+      currentAudioObjectUrl = URL.createObjectURL(file);
+      audioPlayer.src = currentAudioObjectUrl;
+      const { start } = getRangeWindow();
+      audioPlayer.currentTime = start;
+      simTime = start;
+      updateUiFromTime(start);
+    });
+
+    audioPlayer.addEventListener("loadedmetadata", () => {
+      const dur = Math.floor(audioPlayer.duration);
+      if (Number.isFinite(dur) && dur > 0 && playMode === "custom") {
+        const currentEnd = parseTimeInput(endSecInput.value, 60);
+        if (currentEnd > dur) {
+          endSecInput.value = formatTime(dur);
+        }
+      }
+      const { start } = getRangeWindow();
+      updateUiFromTime(start);
+    });
+
+    function setMode(nextMode) {
+      playMode = nextMode;
+      modeOneMin.classList.toggle("active", nextMode === "onemin");
+      modeFull.classList.toggle("active", nextMode === "full");
+      modeCustom.classList.toggle("active", nextMode === "custom");
+      customRangeBox.classList.toggle("active", nextMode === "custom");
+
+      const { start, end } = getRangeWindow();
+      if (hasLoadedAudio()) {
+        audioPlayer.currentTime = start;
+      }
+      simTime = start;
+      updateUiFromTime(start);
+      targetTimeText.textContent = formatTime(end);
+    }
+
+    modeOneMin.addEventListener("click", () => setMode("onemin"));
+    modeFull.addEventListener("click", () => setMode("full"));
+    modeCustom.addEventListener("click", () => setMode("custom"));
+
+    function handleCustomRangeChange() {
+      const { start, end } = getRangeWindow();
+      if (!isPlaying) {
+        if (hasLoadedAudio()) {
+          audioPlayer.currentTime = start;
+        }
+        simTime = start;
+        updateUiFromTime(start);
+      }
+      targetTimeText.textContent = formatTime(end);
+    }
+
+    startSecInput.addEventListener("input", handleCustomRangeChange);
+    endSecInput.addEventListener("input", handleCustomRangeChange);
+
+    startSecInput.addEventListener("blur", () => {
+      startSecInput.value = formatTime(parseTimeInput(startSecInput.value, 0));
+      handleCustomRangeChange();
+    });
+
+    endSecInput.addEventListener("blur", () => {
+      endSecInput.value = formatTime(parseTimeInput(endSecInput.value, 60));
+      handleCustomRangeChange();
+    });
+
+    function updateUiFromTime(nowSec) {
+      const { start, end } = getRangeWindow();
+      const clamped = Math.max(start, Math.min(nowSec, end));
+      const span = Math.max(0.001, end - start);
+      const pct = Math.min(100, Math.max(0, ((clamped - start) / span) * 100));
+
+      currentTimeText.textContent = formatTime(clamped);
+      targetTimeText.textContent = formatTime(end);
+      progressFill.style.width = `${pct}%`;
+    }
+
+    function yieldMs(ms = 0) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function canvasToPngBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Canvas toBlob failed"));
+        }, "image/png");
+      });
+    }
+
+    function triggerBlobDownload(blob, filename) {
+      const dlUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = dlUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(dlUrl), 5000);
+    }
+
+    let chimeAudioCtx = null;
+
+    function unlockChimeAudio() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!chimeAudioCtx) {
+          chimeAudioCtx = new AudioContextClass();
+        }
+        if (chimeAudioCtx.state === "suspended") {
+          chimeAudioCtx.resume().catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    function playExportSuccessChime() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!chimeAudioCtx) {
+          chimeAudioCtx = new AudioContextClass();
+        }
+        if (chimeAudioCtx.state === "suspended") {
+          chimeAudioCtx.resume().catch(() => {});
+        }
+
+        const now = chimeAudioCtx.currentTime;
+        const notes = [
+          { freq: 783.99, delay: 0, dur: 0.24, gain: 0.08 },
+          { freq: 1046.5, delay: 0.09, dur: 0.38, gain: 0.11 },
+        ];
+
+        for (const n of notes) {
+          const osc = chimeAudioCtx.createOscillator();
+          const gainNode = chimeAudioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(n.freq, now + n.delay);
+
+          gainNode.gain.setValueAtTime(0.0001, now + n.delay);
+          gainNode.gain.exponentialRampToValueAtTime(n.gain, now + n.delay + 0.018);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, now + n.delay + n.dur);
+
+          osc.connect(gainNode);
+          gainNode.connect(chimeAudioCtx.destination);
+
+          osc.start(now + n.delay);
+          osc.stop(now + n.delay + n.dur + 0.02);
+        }
+      } catch (_) {}
+    }
+
+    function buildStaticBackgroundCanvas() {
+      const size = 1080;
+      const cx = size / 2;
+      const cy = size / 2;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+
+      const bgGrad = ctx.createRadialGradient(cx, cy, 80, cx, cy, size * 0.72);
+      bgGrad.addColorStop(0, "#151921");
+      bgGrad.addColorStop(0.7, "#0b0d12");
+      bgGrad.addColorStop(1, "#06070a");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, size, size);
+
+      return canvas;
+    }
+
+    function drawCoverInCircle(ctx, radius, fallbackStyle) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (coverImgObj) {
+        const diam = radius * 2;
+        const iw = coverImgObj.width;
+        const ih = coverImgObj.height;
+        const scale = Math.max(diam / iw, diam / ih);
+        const dw = iw * scale;
+        const dh = ih * scale;
+        ctx.drawImage(coverImgObj, -dw / 2, -dh / 2, dw, dh);
+      } else if (fallbackStyle === "cd") {
+        if (typeof ctx.createConicGradient === "function") {
+          const cdGrad = ctx.createConicGradient(0.6, 0, 0);
+          cdGrad.addColorStop(0.0, "#9ca5b4");
+          cdGrad.addColorStop(0.14, "#e0e6f0");
+          cdGrad.addColorStop(0.28, "#aeb7c6");
+          cdGrad.addColorStop(0.42, "#7c8596");
+          cdGrad.addColorStop(0.58, "#d8dfe9");
+          cdGrad.addColorStop(0.74, "#8f98a8");
+          cdGrad.addColorStop(0.9, "#e4e9f1");
+          cdGrad.addColorStop(1.0, "#9ca5b4");
+          ctx.fillStyle = cdGrad;
+        } else {
+          ctx.fillStyle = "#b8c0ce";
+        }
+        ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+      } else if (fallbackStyle === "paper") {
+        const paperGrad = ctx.createRadialGradient(-24, -24, 16, 0, 0, radius);
+        paperGrad.addColorStop(0, "#f5f3ee");
+        paperGrad.addColorStop(0.74, "#ebe8e0");
+        paperGrad.addColorStop(1, "#dcd8ce");
+        ctx.fillStyle = paperGrad;
+        ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius - 22, 0, Math.PI * 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.46, 0, Math.PI * 2);
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.09)";
+        ctx.stroke();
+      } else {
+        const darkGrad = ctx.createRadialGradient(0, 0, 30, 0, 0, radius);
+        darkGrad.addColorStop(0, "#232833");
+        darkGrad.addColorStop(0.72, "#12151d");
+        darkGrad.addColorStop(1, "#090b0f");
+        ctx.fillStyle = darkGrad;
+        ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+      }
+
+      ctx.restore();
+    }
+
+    function buildVinylDiscCanvas() {
+      const boxSize = 1080;
+      const discR = 536;
+      const hasCover = Boolean(coverImgObj);
+      const style = selectedDiscStyle;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = boxSize;
+      canvas.height = boxSize;
+      const ctx = canvas.getContext("2d");
+
+      ctx.save();
+      ctx.translate(boxSize / 2, boxSize / 2);
+
+      if (style === "cd-full") {
+        drawCoverInCircle(ctx, discR, "cd");
+
+        // Crisp metallic outer CD rim
+        ctx.beginPath();
+        ctx.arc(0, 0, discR - 1.5, 0, Math.PI * 2);
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.42)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, discR - 5, 0, Math.PI * 2);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.stroke();
+
+        // Translucent frosted polycarbonate CD clamping hub (exact Telegram CD look)
+        const hubOuterR = Math.round(discR * 0.362); // ~194px
+        const hubMidR = Math.round(discR * 0.194);   // ~104px
+        const holeR = Math.round(discR * 0.138);     // ~74px
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, hubOuterR, 0, Math.PI * 2);
+        ctx.arc(0, 0, holeR, 0, Math.PI * 2, true);
+        ctx.clip();
+
+        const hubGrad = ctx.createRadialGradient(0, 0, holeR, 0, 0, hubOuterR);
+        hubGrad.addColorStop(0.0, "rgba(255, 255, 255, 0.46)");
+        hubGrad.addColorStop(0.18, "rgba(220, 228, 240, 0.24)");
+        hubGrad.addColorStop(0.24, "rgba(255, 255, 255, 0.14)");
+        hubGrad.addColorStop(0.28, "rgba(0, 0, 0, 0.24)");
+        hubGrad.addColorStop(0.32, "rgba(255, 255, 255, 0.38)");
+        hubGrad.addColorStop(0.62, "rgba(232, 238, 248, 0.22)");
+        hubGrad.addColorStop(0.88, "rgba(205, 214, 228, 0.28)");
+        hubGrad.addColorStop(0.96, "rgba(255, 255, 255, 0.5)");
+        hubGrad.addColorStop(1.0, "rgba(255, 255, 255, 0.2)");
+        ctx.fillStyle = hubGrad;
+        ctx.fillRect(-hubOuterR, -hubOuterR, hubOuterR * 2, hubOuterR * 2);
+
+        if (typeof ctx.createConicGradient === "function") {
+          const iriGrad = ctx.createConicGradient(0.4, 0, 0);
+          iriGrad.addColorStop(0.0, "rgba(255, 255, 255, 0)");
+          iriGrad.addColorStop(0.1, "rgba(255, 244, 220, 0.18)");
+          iriGrad.addColorStop(0.22, "rgba(210, 232, 255, 0.2)");
+          iriGrad.addColorStop(0.35, "rgba(255, 255, 255, 0.04)");
+          iriGrad.addColorStop(0.55, "rgba(255, 244, 220, 0.18)");
+          iriGrad.addColorStop(0.68, "rgba(210, 232, 255, 0.2)");
+          iriGrad.addColorStop(0.85, "rgba(255, 255, 255, 0.04)");
+          iriGrad.addColorStop(1.0, "rgba(255, 255, 255, 0)");
+          ctx.fillStyle = iriGrad;
+          ctx.fillRect(-hubOuterR, -hubOuterR, hubOuterR * 2, hubOuterR * 2);
+        }
+        ctx.restore();
+
+        // Crisp concentric etched rings on CD hub
+        ctx.beginPath();
+        ctx.arc(0, 0, hubOuterR, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.56)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, hubOuterR - 5, 0, Math.PI * 2);
+        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.26)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, hubMidR, 0, Math.PI * 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.42)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, hubMidR - 5, 0, Math.PI * 2);
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+        ctx.stroke();
+
+        // Clean circular center cutout hole
+        ctx.beginPath();
+        ctx.arc(0, 0, holeR, 0, Math.PI * 2);
+        ctx.fillStyle = "#090a0e";
+        ctx.fill();
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = "rgba(242, 246, 252, 0.82)";
+        ctx.stroke();
+      } else if (style === "vinyl-full") {
+        drawCoverInCircle(ctx, discR, "dark");
+
+        // Translucent vinyl micro-grooves overlaid on full-bleed cover
+        for (let r = 136; r < discR - 10; r += 3.5) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          const isTrack = Math.abs(r - 255) < 2 || Math.abs(r - 365) < 2 || Math.abs(r - 465) < 2;
+          ctx.lineWidth = isTrack ? 2.6 : 1.05;
+          ctx.strokeStyle = isTrack
+            ? "rgba(0, 0, 0, 0.48)"
+            : Math.round(r) % 7 === 0
+              ? "rgba(255, 255, 255, 0.095)"
+              : "rgba(0, 0, 0, 0.14)";
+          ctx.stroke();
+        }
+
+        // Outer vinyl edge rim
+        ctx.beginPath();
+        ctx.arc(0, 0, discR - 1.5, 0, Math.PI * 2);
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+        ctx.stroke();
+
+        // Subtle dark-glass ring around spindle
+        ctx.beginPath();
+        ctx.arc(0, 0, 118, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(8, 10, 14, 0.34)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fillStyle = "#090a0d";
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(180, 188, 202, 0.82)";
+        ctx.stroke();
+      } else if (style === "glass-disc") {
+        // Frosted Liquid Glass outer bezel ring (81%..100%)
+        const innerCoverR = Math.round(discR * 0.81); // ~434px
+        ctx.beginPath();
+        ctx.arc(0, 0, discR, 0, Math.PI * 2);
+        const bezelGrad = ctx.createRadialGradient(0, 0, innerCoverR, 0, 0, discR);
+        bezelGrad.addColorStop(0.0, "#1c212b");
+        bezelGrad.addColorStop(0.15, "#2c3342");
+        bezelGrad.addColorStop(0.55, "#191e27");
+        bezelGrad.addColorStop(0.92, "#2f3646");
+        bezelGrad.addColorStop(1.0, "#12151c");
+        ctx.fillStyle = bezelGrad;
+        ctx.fill();
+
+        for (let r = innerCoverR + 12; r < discR - 8; r += 16) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, discR - 1.5, 0, Math.PI * 2);
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.38)";
+        ctx.stroke();
+
+        drawCoverInCircle(ctx, innerCoverR, "dark");
+
+        ctx.beginPath();
+        ctx.arc(0, 0, innerCoverR, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.34)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fillStyle = "#090a0d";
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(210, 218, 232, 0.85)";
+        ctx.stroke();
+      } else {
+        // Style 2: Classic Black Grooved Vinyl
+        const labelR = hasCover ? 295 : 225;
+        const baseGrad = ctx.createRadialGradient(0, 0, labelR, 0, 0, discR);
+        baseGrad.addColorStop(0, "#08090c");
+        baseGrad.addColorStop(0.16, "#0d0f14");
+        baseGrad.addColorStop(0.18, "#050608");
+        baseGrad.addColorStop(0.45, "#0f1217");
+        baseGrad.addColorStop(0.47, "#060709");
+        baseGrad.addColorStop(0.74, "#10131a");
+        baseGrad.addColorStop(0.76, "#060709");
+        baseGrad.addColorStop(0.96, "#0d0f14");
+        baseGrad.addColorStop(0.985, "#1f242c");
+        baseGrad.addColorStop(1, "#07080b");
+
+        ctx.beginPath();
+        ctx.arc(0, 0, discR, 0, Math.PI * 2);
+        ctx.fillStyle = baseGrad;
+        ctx.fill();
+
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+        ctx.stroke();
+
+        for (let r = discR - 14; r <= discR - 4; r += 3) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          ctx.stroke();
+        }
+
+        const grooveStart = hasCover ? labelR + 30 : labelR + 46;
+        const trackGaps = new Set(hasCover ? [370, 432, 488] : [342, 416, 480]);
+        for (let r = grooveStart; r < discR - 16; r += 3.5) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          const nearGap = trackGaps.has(Math.round(r));
+          ctx.lineWidth = nearGap ? 3 : 1.1;
+          ctx.strokeStyle = nearGap
+            ? "rgba(0, 0, 0, 0.72)"
+            : Math.round(r) % 7 === 0
+              ? "rgba(255, 255, 255, 0.055)"
+              : "rgba(255, 255, 255, 0.025)";
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, labelR + (hasCover ? 16 : 26), 0, Math.PI * 2);
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+        ctx.stroke();
+
+        drawCoverInCircle(ctx, labelR, "paper");
+
+        ctx.beginPath();
+        ctx.arc(0, 0, labelR, 0, Math.PI * 2);
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = hasCover ? "rgba(255, 255, 255, 0.24)" : "rgba(0, 0, 0, 0.55)";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fillStyle = "#090a0d";
+        ctx.fill();
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = "rgba(120, 128, 142, 0.78)";
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      return canvas;
+    }
+
+    function buildVinylSheenCanvas() {
+      const boxSize = 1080;
+      const discR = 536;
+      const style = selectedDiscStyle;
+      const innerMaskR =
+        style === "vinyl-classic"
+          ? (coverImgObj ? 296 : 226)
+          : style === "cd-full"
+            ? Math.round(discR * 0.14)
+            : 28;
+      const sheenAlphaScale =
+        style === "cd-full"
+          ? 0.62
+          : style === "vinyl-full" || style === "glass-disc"
+            ? 0.78
+            : 1;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = boxSize;
+      canvas.height = boxSize;
+      const ctx = canvas.getContext("2d");
+
+      ctx.save();
+      ctx.translate(boxSize / 2, boxSize / 2);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, discR, 0, Math.PI * 2);
+      ctx.arc(0, 0, innerMaskR, 0, Math.PI * 2, true);
+      ctx.clip();
+
+      if (typeof ctx.createConicGradient === "function") {
+        const conic = ctx.createConicGradient(-0.98, 0, 0);
+        conic.addColorStop(0.0, "rgba(255, 255, 255, 0)");
+        conic.addColorStop(0.05, `rgba(220, 228, 242, ${0.09 * sheenAlphaScale})`);
+        conic.addColorStop(0.09, `rgba(255, 255, 255, ${0.3 * sheenAlphaScale})`);
+        conic.addColorStop(0.13, `rgba(225, 234, 248, ${0.13 * sheenAlphaScale})`);
+        conic.addColorStop(0.18, `rgba(255, 255, 255, ${0.02 * sheenAlphaScale})`);
+        conic.addColorStop(0.32, "rgba(255, 255, 255, 0)");
+        conic.addColorStop(0.41, `rgba(200, 212, 232, ${0.045 * sheenAlphaScale})`);
+        conic.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+        conic.addColorStop(0.55, `rgba(220, 228, 242, ${0.09 * sheenAlphaScale})`);
+        conic.addColorStop(0.59, `rgba(255, 255, 255, ${0.31 * sheenAlphaScale})`);
+        conic.addColorStop(0.63, `rgba(225, 234, 248, ${0.13 * sheenAlphaScale})`);
+        conic.addColorStop(0.68, `rgba(255, 255, 255, ${0.02 * sheenAlphaScale})`);
+        conic.addColorStop(0.84, "rgba(255, 255, 255, 0)");
+        conic.addColorStop(0.91, `rgba(200, 212, 232, ${0.04 * sheenAlphaScale})`);
+        conic.addColorStop(1.0, "rgba(255, 255, 255, 0)");
+
+        ctx.fillStyle = conic;
+        ctx.fillRect(-discR, -discR, discR * 2, discR * 2);
+      } else {
+        const lin = ctx.createLinearGradient(-discR, -discR, discR, discR);
+        lin.addColorStop(0.35, "rgba(255,255,255,0)");
+        lin.addColorStop(0.5, `rgba(255,255,255,${0.18 * sheenAlphaScale})`);
+        lin.addColorStop(0.65, "rgba(255,255,255,0)");
+        ctx.fillStyle = lin;
+        ctx.fillRect(-discR, -discR, discR * 2, discR * 2);
+      }
+
+      ctx.restore();
+
+      // Optional stationary title overlay inside lower safe chord of Telegram's circle
+      const mainText = mainTitleInput.value.trim();
+      const subText = subTitleInput.value.trim();
+      if (mainText || subText) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(boxSize / 2, boxSize / 2, discR, 0, Math.PI * 2);
+        ctx.clip();
+
+        const scrim = ctx.createLinearGradient(0, 740, 0, boxSize);
+        scrim.addColorStop(0, "rgba(6, 7, 10, 0)");
+        scrim.addColorStop(0.45, "rgba(6, 7, 10, 0.56)");
+        scrim.addColorStop(1, "rgba(6, 7, 10, 0.86)");
+        ctx.fillStyle = scrim;
+        ctx.fillRect(0, 740, boxSize, boxSize - 740);
+
+        ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 2;
+
+        if (mainText) {
+          ctx.fillStyle = "#f5f7fa";
+          ctx.font = "700 38px 'Readex Pro', 'IBM Plex Sans Arabic', sans-serif";
+          ctx.fillText(mainText, boxSize / 2, subText ? 872 : 898, 720);
+        }
+        if (subText) {
+          ctx.fillStyle = "#cfd5df";
+          ctx.font = "500 24px 'IBM Plex Sans Arabic', sans-serif";
+          ctx.fillText(subText, boxSize / 2, 916, 680);
+        }
+        ctx.restore();
+      }
+
+      return canvas;
+    }
+
+    async function getDecodedAudioBuffer() {
+      if (!uploadedAudioFile) return null;
+      if (decodedAudioCache && decodedAudioCache.file === uploadedAudioFile) {
+        return decodedAudioCache.buffer;
+      }
+      const arrBuf = await uploadedAudioFile.arrayBuffer();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error("AudioContext unsupported");
+      const tmpCtx = new AudioContextClass();
+      try {
+        const decoded = await tmpCtx.decodeAudioData(arrBuf);
+        decodedAudioCache = { file: uploadedAudioFile, buffer: decoded };
+        return decoded;
+      } finally {
+        tmpCtx.close().catch(() => {});
+      }
+    }
+
+    async function sliceAndResampleAudio(decodedBuffer, startSec, durationSec, channels, targetSampleRate) {
+      const totalSamples = Math.max(1, Math.floor(durationSec * targetSampleRate));
+      const offlineCtx = new OfflineAudioContext(channels, totalSamples, targetSampleRate);
+      const source = offlineCtx.createBufferSource();
+      source.buffer = decodedBuffer;
+      source.connect(offlineCtx.destination);
+      const safeStart = Math.max(0, Math.min(startSec, Math.max(0, decodedBuffer.duration - 0.05)));
+      source.start(0, safeStart, durationSec);
+      return offlineCtx.startRendering();
+    }
+
+    function getExportPlan(durationSec, hasAudio) {
+      if (selectedSizeMode !== "under19") {
+        return {
+          sizeMode: "full",
+          width: 1080,
+          height: 1080,
+          fps: 30,
+          videoBitrate: 5_000_000,
+          audioBitrate: 128_000,
+        };
+      }
+
+      const targetBytes = 17_800_000;
+      const totalBps = Math.floor((targetBytes * 8) / Math.max(1, durationSec));
+      const audioBitrate = hasAudio
+        ? (totalBps > 450_000 ? 128_000 : totalBps > 250_000 ? 96_000 : 64_000)
+        : 0;
+      const videoBitrate = Math.max(160_000, Math.min(5_000_000, totalBps - audioBitrate - 24_000));
+
+      let width = 1080;
+      let height = 1080;
+      let fps = 30;
+      if (videoBitrate < 600_000) {
+        width = 640;
+        height = 640;
+        fps = 24;
+      } else if (videoBitrate < 1_400_000) {
+        width = 720;
+        height = 720;
+        fps = 30;
+      }
+
+      return {
+        sizeMode: "under19",
+        width,
+        height,
+        fps,
+        videoBitrate,
+        audioBitrate,
+      };
+    }
+
+    async function selectWebCodecsProfile(hasAudio, channels, plan) {
+      if (typeof VideoEncoder !== "function" || typeof VideoFrame !== "function") {
+        return null;
+      }
+      if (hasAudio && (typeof AudioEncoder !== "function" || typeof AudioData !== "function")) {
+        return null;
+      }
+
+      const tryVideoConfigs = async (candidates) => {
+        for (const candidate of candidates) {
+          for (const accel of ["prefer-hardware", "no-preference"]) {
+            const cfg = {
+              codec: candidate.codec,
+              width: plan.width,
+              height: plan.height,
+              bitrate: plan.videoBitrate,
+              bitrateMode: plan.sizeMode === "under19" ? "constant" : "variable",
+              framerate: plan.fps,
+              hardwareAcceleration: accel,
+            };
+            try {
+              const res = await VideoEncoder.isConfigSupported(cfg);
+              if (res && res.supported) {
+                return { encoderConfig: res.config || cfg, muxerCodec: candidate.muxerCodec };
+              }
+            } catch (_) {
+              try {
+                const fallbackCfg = {
+                  codec: candidate.codec,
+                  width: plan.width,
+                  height: plan.height,
+                  bitrate: plan.videoBitrate,
+                  framerate: plan.fps,
+                  hardwareAcceleration: accel,
+                };
+                const res2 = await VideoEncoder.isConfigSupported(fallbackCfg);
+                if (res2 && res2.supported) {
+                  return { encoderConfig: res2.config || fallbackCfg, muxerCodec: candidate.muxerCodec };
+                }
+              } catch (_) {}
+            }
+          }
+        }
+        return null;
+      };
+
+      const tryAudioConfigs = async (candidates) => {
+        for (const candidate of candidates) {
+          const cfg = {
+            codec: candidate.codec,
+            numberOfChannels: channels,
+            sampleRate: candidate.sampleRate,
+            bitrate: plan.audioBitrate || 128_000,
+          };
+          try {
+            const res = await AudioEncoder.isConfigSupported(cfg);
+            if (res && res.supported) {
+              return { encoderConfig: res.config || cfg, muxerCodec: candidate.muxerCodec };
+            }
+          } catch (_) {}
+        }
+        return null;
+      };
+
+      const mp4Video = await tryVideoConfigs([
+        { codec: "avc1.4d002a", muxerCodec: "avc" },
+        { codec: "avc1.42002a", muxerCodec: "avc" },
+        { codec: "avc1.64002a", muxerCodec: "avc" },
+        { codec: "avc1.4d0028", muxerCodec: "avc" },
+        { codec: "avc1.420028", muxerCodec: "avc" },
+      ]);
+
+      if (mp4Video) {
+        if (!hasAudio) {
+          return { format: "mp4", video: mp4Video, audio: null };
+        }
+        const mp4Audio = await tryAudioConfigs([
+          { codec: "mp4a.40.2", sampleRate: 48000, muxerCodec: "aac" },
+          { codec: "mp4a.40.2", sampleRate: 44100, muxerCodec: "aac" },
+          { codec: "opus", sampleRate: 48000, muxerCodec: "opus" },
+        ]);
+        if (mp4Audio) {
+          return { format: "mp4", video: mp4Video, audio: mp4Audio };
+        }
+      }
+
+      const webmVideo = await tryVideoConfigs([
+        { codec: "vp09.00.10.08", muxerCodec: "V_VP9" },
+        { codec: "vp8", muxerCodec: "V_VP8" },
+      ]);
+
+      if (webmVideo) {
+        if (!hasAudio) {
+          return { format: "webm", video: webmVideo, audio: null };
+        }
+        const webmAudio = await tryAudioConfigs([
+          { codec: "opus", sampleRate: 48000, muxerCodec: "A_OPUS" },
+        ]);
+        if (webmAudio) {
+          return { format: "webm", video: webmVideo, audio: webmAudio };
+        }
+      }
+
+      return null;
+    }
+
+    async function exportWithWebCodecs(bgCanvas, discCanvas, sheenCanvas, startSec, durationSec) {
+      const hasAudio = Boolean(uploadedAudioFile);
+      const plan = getExportPlan(durationSec, hasAudio);
+      let decodedAudio = null;
+      let channels = 2;
+
+      if (hasAudio) {
+        statusNote.textContent = "جارٍ قراءة الصوت...";
+        decodedAudio = await getDecodedAudioBuffer();
+        channels = Math.min(2, Math.max(1, decodedAudio.numberOfChannels || 2));
+      }
+
+      const profile = await selectWebCodecsProfile(hasAudio, channels, plan);
+      if (!profile) {
+        return false;
+      }
+
+      let muxer;
+      let target;
+
+      if (profile.format === "mp4") {
+        let Mp4Muxer;
+        try {
+          Mp4Muxer = await import("./vendor/mp4-muxer.mjs");
+        } catch (_) {
+          Mp4Muxer = await import("https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs");
+        }
+        target = new Mp4Muxer.ArrayBufferTarget();
+        muxer = new Mp4Muxer.Muxer({
+          target,
+          video: {
+            codec: profile.video.muxerCodec,
+            width: plan.width,
+            height: plan.height,
+            frameRate: plan.fps,
+          },
+          audio: profile.audio
+            ? {
+                codec: profile.audio.muxerCodec,
+                numberOfChannels: channels,
+                sampleRate: profile.audio.encoderConfig.sampleRate,
+              }
+            : undefined,
+          fastStart: "in-memory",
+        });
+      } else {
+        let WebmMuxer;
+        try {
+          WebmMuxer = await import("./vendor/webm-muxer.mjs");
+        } catch (_) {
+          WebmMuxer = await import("https://cdn.jsdelivr.net/npm/webm-muxer@5.1.4/build/webm-muxer.mjs");
+        }
+        target = new WebmMuxer.ArrayBufferTarget();
+        muxer = new WebmMuxer.Muxer({
+          target,
+          video: {
+            codec: profile.video.muxerCodec,
+            width: plan.width,
+            height: plan.height,
+            frameRate: plan.fps,
+          },
+          audio: profile.audio
+            ? {
+                codec: profile.audio.muxerCodec,
+                numberOfChannels: channels,
+                sampleRate: profile.audio.encoderConfig.sampleRate,
+              }
+            : undefined,
+        });
+      }
+
+      let encoderError = null;
+      const videoEncoder = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: (err) => {
+          encoderError = err;
+        },
+      });
+      videoEncoder.configure(profile.video.encoderConfig);
+
+      let audioEncoder = null;
+      if (profile.audio && decodedAudio) {
+        audioEncoder = new AudioEncoder({
+          output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+          error: (err) => {
+            encoderError = err;
+          },
+        });
+        audioEncoder.configure(profile.audio.encoderConfig);
+      }
+
+      try {
+        if (audioEncoder && decodedAudio) {
+          statusNote.textContent = "جارٍ ترميز الصوت...";
+          const targetRate = profile.audio.encoderConfig.sampleRate;
+          const slicedBuffer = await sliceAndResampleAudio(
+            decodedAudio,
+            startSec,
+            durationSec,
+            channels,
+            targetRate
+          );
+          const totalSamples = slicedBuffer.length;
+          const chunkFrames = 4096;
+
+          for (let offset = 0; offset < totalSamples; offset += chunkFrames) {
+            if (exportAbortRequested) throw new DOMException("Aborted", "AbortError");
+            if (encoderError) throw encoderError;
+
+            const count = Math.min(chunkFrames, totalSamples - offset);
+            const planar = new Float32Array(count * channels);
+            for (let ch = 0; ch < channels; ch++) {
+              const channelData = slicedBuffer.getChannelData(ch);
+              planar.set(channelData.subarray(offset, offset + count), ch * count);
+            }
+
+            const audioData = new AudioData({
+              format: "f32-planar",
+              sampleRate: targetRate,
+              numberOfFrames: count,
+              numberOfChannels: channels,
+              timestamp: Math.round((offset / targetRate) * 1_000_000),
+              data: planar,
+            });
+
+            audioEncoder.encode(audioData);
+            audioData.close();
+
+            while (audioEncoder.encodeQueueSize > 16 && !exportAbortRequested && !encoderError) {
+              await yieldMs(2);
+            }
+          }
+          await audioEncoder.flush();
+          if (encoderError) throw encoderError;
+        }
+
+        const fps = plan.fps;
+        const totalFrames = Math.max(1, Math.round(durationSec * fps));
+        const frameDurationUs = Math.round(1_000_000 / fps);
+        const degPerSec = SPEED_PRESETS[selectedSpeed].degPerSec;
+        const scale = plan.width / 1080;
+
+        const renderCanvas = document.createElement("canvas");
+        renderCanvas.width = plan.width;
+        renderCanvas.height = plan.height;
+        const renderCtx = renderCanvas.getContext("2d", { alpha: false });
+        renderCtx.imageSmoothingEnabled = true;
+        renderCtx.imageSmoothingQuality = "high";
+
+        for (let f = 0; f < totalFrames; f++) {
+          if (exportAbortRequested) throw new DOMException("Aborted", "AbortError");
+          if (encoderError) throw encoderError;
+
+          const t = f / fps;
+          const angleRad = (((t * degPerSec) % 360) * Math.PI) / 180;
+
+          renderCtx.setTransform(scale, 0, 0, scale, 0, 0);
+          renderCtx.drawImage(bgCanvas, 0, 0);
+          renderCtx.save();
+          renderCtx.translate(540, 540);
+          renderCtx.rotate(angleRad);
+          renderCtx.drawImage(discCanvas, -discCanvas.width / 2, -discCanvas.height / 2);
+          renderCtx.restore();
+          renderCtx.drawImage(sheenCanvas, 0, 0);
+
+          const frame = new VideoFrame(renderCanvas, {
+            timestamp: Math.round((f / fps) * 1_000_000),
+            duration: frameDurationUs,
+          });
+
+          videoEncoder.encode(frame, { keyFrame: f % (fps * 2) === 0 });
+          frame.close();
+
+          while (videoEncoder.encodeQueueSize > 6 && !exportAbortRequested && !encoderError) {
+            await yieldMs(4);
+          }
+
+          if (f % 4 === 0 || f === totalFrames - 1) {
+            const pct = Math.round(((f + 1) / totalFrames) * 100);
+            statusNote.textContent = `جارٍ تصدير الفيديو... ${pct}%`;
+            progressFill.style.width = `${pct}%`;
+            await yieldMs(0);
+          }
+        }
+
+        if (exportAbortRequested) throw new DOMException("Aborted", "AbortError");
+        await videoEncoder.flush();
+        if (encoderError) throw encoderError;
+
+        muxer.finalize();
+
+        if (selectedSizeMode === "under19" && target.buffer.byteLength > 18_950_000) {
+          return false;
+        }
+
+        const mimeType = profile.format === "mp4" ? "video/mp4" : "video/webm";
+        const ext = profile.format === "mp4" ? "mp4" : "webm";
+        const blob = new Blob([target.buffer], { type: mimeType });
+        const filename = `spinify-1x1.${ext}`;
+        lastExportedBlob = blob;
+        lastExportedFilename = filename;
+        triggerBlobDownload(blob, filename);
+        return true;
+      } finally {
+        try {
+          if (videoEncoder.state !== "closed") videoEncoder.close();
+        } catch (_) {}
+        try {
+          if (audioEncoder && audioEncoder.state !== "closed") audioEncoder.close();
+        } catch (_) {}
+      }
+    }
+
+    async function exportWithServerFfmpeg(bgCanvas, discCanvas, sheenCanvas, startSec, durationSec, signal) {
+      statusNote.textContent = "جارٍ تجهيز الفيديو بسرعة عبر الخادم...";
+      progressFill.style.width = "35%";
+
+      const [bgBlob, discBlob, sheenBlob] = await Promise.all([
+        canvasToPngBlob(bgCanvas),
+        canvasToPngBlob(discCanvas),
+        canvasToPngBlob(sheenCanvas),
+      ]);
+
+      const formData = new FormData();
+      formData.append("bgImage", bgBlob, "bg.png");
+      formData.append("discImage", discBlob, "disc.png");
+      formData.append("sheenImage", sheenBlob, "sheen.png");
+      formData.append("startSec", String(startSec));
+      formData.append("durationSec", String(durationSec));
+      formData.append("rotSec", String(SPEED_PRESETS[selectedSpeed].rotSec));
+      formData.append("sizeMode", selectedSizeMode);
+      if (uploadedAudioFile) {
+        formData.append("audio", uploadedAudioFile, uploadedAudioFile.name || "audio");
+      }
+
+      const res = await fetch("./api/export-video", {
+        method: "POST",
+        body: formData,
+        signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server export failed (${res.status})`);
+      }
+
+      progressFill.style.width = "85%";
+      const videoBlob = await res.blob();
+      progressFill.style.width = "100%";
+      lastExportedBlob = videoBlob;
+      lastExportedFilename = "spinify-1x1.mp4";
+      triggerBlobDownload(videoBlob, "spinify-1x1.mp4");
+    }
+
+    async function shareExportedVideo() {
+      if (!lastExportedBlob) return;
+      const mime = lastExportedBlob.type || "video/mp4";
+      const file = new File([lastExportedBlob], lastExportedFilename, { type: mime });
+      const titleText = mainTitleInput.value.trim() || "Spinify";
+
+      if (navigator.share) {
+        try {
+          if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+            throw new Error("File share unsupported");
+          }
+          await navigator.share({
+            files: [file],
+            title: titleText,
+            text: "Spinify — @xleeix",
+          });
+          statusNote.textContent = "تمت مشاركة الفيديو بنجاح.";
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") {
+            statusNote.textContent = "تم إلغاء المشاركة.";
+            return;
+          }
+        }
+      }
+
+      triggerBlobDownload(lastExportedBlob, lastExportedFilename);
+      statusNote.textContent = "المشاركة المباشرة غير مدعومة في هذا المتصفح، تم حفظ الفيديو لمشاركته من المعرض.";
+    }
+
+    async function startFastVideoExport() {
+      if (isExporting) {
+        exportAbortRequested = true;
+        if (exportAbortController) {
+          exportAbortController.abort();
+        }
+        return;
+      }
+
+      unlockChimeAudio();
+
+      if (isPlaying) {
+        stopPlayback(false);
+      }
+
+      isExporting = true;
+      exportAbortRequested = false;
+      exportAbortController = new AbortController();
+      shareVideoBtn.classList.remove("visible");
+      downloadVideoBtn.classList.add("recording");
+      downloadVideoBtn.textContent = "إلغاء التصدير";
+      statusNote.textContent = "جارٍ تحضير الفيديو...";
+
+      try {
+        if (document.fonts && document.fonts.ready) {
+          await Promise.race([document.fonts.ready, yieldMs(1200)]);
+        }
+        const { start, end } = getRangeWindow();
+        const durationSec = Math.max(1, end - start);
+        const bgCanvas = buildStaticBackgroundCanvas();
+        const discCanvas = buildVinylDiscCanvas();
+        const sheenCanvas = buildVinylSheenCanvas();
+
+        let exported = false;
+        try {
+          exported = await exportWithWebCodecs(bgCanvas, discCanvas, sheenCanvas, start, durationSec);
+        } catch (err) {
+          if (err && err.name === "AbortError") throw err;
+          exported = false;
+        }
+
+        if (!exported) {
+          if (exportAbortRequested) throw new DOMException("Aborted", "AbortError");
+          await exportWithServerFfmpeg(
+            bgCanvas,
+            discCanvas,
+            sheenCanvas,
+            start,
+            durationSec,
+            exportAbortController.signal
+          );
+        }
+
+        if (lastExportedBlob) {
+          shareVideoBtn.classList.add("visible");
+        }
+        playExportSuccessChime();
+        statusNote.textContent =
+          selectedSizeMode === "under19"
+            ? "تم تنزيل الفيديو بحجم أقل من 19MB ومناسب لدائرة تيليجرام."
+            : "تم تنزيل الفيديو بالمساحة الكاملة بمقاس 1:1 لدائرة تيليجرام.";
+      } catch (err) {
+        if (err && err.name === "AbortError") {
+          statusNote.textContent = "تم إلغاء التصدير.";
+        } else {
+          statusNote.textContent = "تعذر تصدير الفيديو. تأكد من سلامة الملفات وحاول مجدداً.";
+        }
+      } finally {
+        isExporting = false;
+        exportAbortRequested = false;
+        exportAbortController = null;
+        downloadVideoBtn.classList.remove("recording");
+        downloadVideoBtn.textContent = "تحميل فيديو";
+        const currentSec = hasLoadedAudio() ? audioPlayer.currentTime : simTime;
+        updateUiFromTime(currentSec);
+      }
+    }
+
+    function stopPlayback(resetToStart = false) {
+      isPlaying = false;
+      playToggleBtn.textContent = "تشغيل";
+      lastTick = null;
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      if (audioPlayer.src) {
+        audioPlayer.pause();
+      }
+
+      if (resetToStart) {
+        const { start } = getRangeWindow();
+        if (hasLoadedAudio()) {
+          audioPlayer.currentTime = start;
+        }
+        simTime = start;
+        discAngleDeg = 0;
+        vinylDisc.style.transform = "rotate(0deg)";
+        updateUiFromTime(start);
+      }
+    }
+
+    function loop(now) {
+      if (!isPlaying) return;
+      if (lastTick === null) lastTick = now;
+      const dt = Math.min(0.1, Math.max(0, (now - lastTick) / 1000));
+      lastTick = now;
+
+      discAngleDeg = (discAngleDeg + dt * SPEED_PRESETS[selectedSpeed].degPerSec) % 360;
+      vinylDisc.style.transform = `rotate(${discAngleDeg}deg)`;
+
+      const { end } = getRangeWindow();
+      let currentSec = simTime;
+
+      if (hasLoadedAudio()) {
+        currentSec = audioPlayer.currentTime;
+      } else {
+        simTime += dt;
+        currentSec = simTime;
+      }
+
+      if (currentSec >= end || (hasLoadedAudio() && audioPlayer.ended)) {
+        if (isLoopEnabled) {
+          const { start } = getRangeWindow();
+          if (hasLoadedAudio()) {
+            audioPlayer.currentTime = start;
+            if (audioPlayer.paused) {
+              audioPlayer.play().catch(() => {});
+            }
+          }
+          simTime = start;
+          lastTick = now;
+          updateUiFromTime(start);
+          rafId = requestAnimationFrame(loop);
+          return;
+        }
+        updateUiFromTime(end);
+        stopPlayback(true);
+        return;
+      }
+
+      updateUiFromTime(currentSec);
+      rafId = requestAnimationFrame(loop);
+    }
+
+    async function startPlayback() {
+      if (isPlaying) {
+        stopPlayback(false);
+        return;
+      }
+
+      const { start, end } = getRangeWindow();
+      let initialSec = hasLoadedAudio() ? audioPlayer.currentTime : simTime;
+
+      if (initialSec < start || initialSec >= end) {
+        initialSec = start;
+        simTime = start;
+        if (hasLoadedAudio()) {
+          audioPlayer.currentTime = start;
+        }
+      }
+
+      isPlaying = true;
+      playToggleBtn.textContent = "إيقاف";
+      lastTick = null;
+      updateUiFromTime(initialSec);
+
+      if (audioPlayer.src) {
+        try {
+          await audioPlayer.play();
+        } catch (_) {
+          // Keep disc spinning and timer running if browser blocks autoplay audio
+        }
+      }
+
+      rafId = requestAnimationFrame(loop);
+    }
+
+    loopToggleBtn.addEventListener("click", () => {
+      isLoopEnabled = !isLoopEnabled;
+      loopToggleBtn.setAttribute("aria-checked", isLoopEnabled ? "true" : "false");
+    });
+
+    playToggleBtn.addEventListener("click", () => startPlayback());
+    downloadVideoBtn.addEventListener("click", () => startFastVideoExport());
+    shareVideoBtn.addEventListener("click", () => shareExportedVideo());
+
+    resetBtn.addEventListener("click", () => {
+      stopPlayback(true);
+    });
+
+    const installWrap = document.getElementById("installWrap");
+    const installAppBtn = document.getElementById("installAppBtn");
+    const iosInstallModal = document.getElementById("iosInstallModal");
+    const closeIosModalBtn = document.getElementById("closeIosModalBtn");
+    let deferredInstallPrompt = null;
+
+    const isStandaloneApp =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true ||
+      Boolean(window.Capacitor);
+    const isIosBrowser = /iphone|ipad|ipod/i.test(window.navigator.userAgent || "");
+
+    if (!isStandaloneApp && isIosBrowser) {
+      installWrap.classList.add("visible");
+    }
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      if (!isStandaloneApp) {
+        installWrap.classList.add("visible");
+      }
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      installWrap.classList.remove("visible");
+    });
+
+    installAppBtn.addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        await deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice && choice.outcome === "accepted") {
+          installWrap.classList.remove("visible");
+        }
+        deferredInstallPrompt = null;
+      } else if (isIosBrowser) {
+        iosInstallModal.classList.add("open");
+      }
+    });
+
+    closeIosModalBtn.addEventListener("click", () => {
+      iosInstallModal.classList.remove("open");
+    });
+
+    iosInstallModal.addEventListener("click", (e) => {
+      if (e.target === iosInstallModal) {
+        iosInstallModal.classList.remove("open");
+      }
+    });
+
+    if ("serviceWorker" in navigator && !window.Capacitor) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+
+    const splashOverlay = document.getElementById("splashOverlay");
+    const appShell = document.getElementById("appShell");
+    let splashDismissed = false;
+
+    function dismissSplash() {
+      if (splashDismissed) return;
+      splashDismissed = true;
+      appShell.classList.add("is-entered");
+      splashOverlay.classList.add("is-leaving");
+      setTimeout(() => {
+        splashOverlay.remove();
+      }, 600);
+    }
+
+    splashOverlay.addEventListener("click", dismissSplash);
+    setTimeout(dismissSplash, 1300);
+
+    setMode("onemin");
+  </script>
+</body>
+</html>
