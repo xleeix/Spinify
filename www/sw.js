@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spinify-v2';
+const CACHE_NAME = 'spinify-v3';
 const PRECACHE_URLS = [
   './',
   './index.html',

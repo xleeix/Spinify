@@ -39,16 +39,27 @@ app.post(
     { name: 'bgImage', maxCount: 1 },
     { name: 'discImage', maxCount: 1 },
     { name: 'sheenImage', maxCount: 1 },
+    { name: 'overlayImage', maxCount: 1 },
     { name: 'audio', maxCount: 1 },
+    { name: 'ambientAudio', maxCount: 1 },
   ]),
   (req, res) => {
     const files = req.files || {};
     const bgFile = files.bgImage?.[0];
     const discFile = files.discImage?.[0];
     const sheenFile = files.sheenImage?.[0];
+    const overlayFile = files.overlayImage?.[0];
     const audioFile = files.audio?.[0];
+    const ambientFile = files.ambientAudio?.[0];
 
-    const tempPaths = [bgFile?.path, discFile?.path, sheenFile?.path, audioFile?.path].filter(Boolean);
+    const tempPaths = [
+      bgFile?.path,
+      discFile?.path,
+      sheenFile?.path,
+      overlayFile?.path,
+      audioFile?.path,
+      ambientFile?.path,
+    ].filter(Boolean);
     const outPath = path.join(os.tmpdir(), `vinyl-export-${randomUUID()}.mp4`);
     tempPaths.push(outPath);
 
@@ -70,29 +81,51 @@ app.post(
     const rawDuration = Number(req.body?.durationSec);
     const rawRotSec = Number(req.body?.rotSec);
     const sizeMode = req.body?.sizeMode === 'under19' ? 'under19' : 'full';
+    const aspectRatio = ['9:16', '16:9'].includes(req.body?.aspectRatio) ? req.body.aspectRatio : '1:1';
+    const requestedQuality = req.body?.quality === '720' ? 720 : 1080;
+    const requestedFps = Number(req.body?.fps) === 60 ? 60 : 30;
+    const staticDisc = req.body?.staticDisc === '1' || req.body?.staticDisc === 'true';
+    const rawCenterY = Number(req.body?.discCenterY);
+    const discCenterY = Number.isFinite(rawCenterY) && rawCenterY > 0.1 && rawCenterY < 0.9 ? rawCenterY : 0.5;
+
     const startSec = Number.isFinite(rawStart) && rawStart >= 0 ? rawStart : 0;
     const durationSec =
       Number.isFinite(rawDuration) && rawDuration > 0
         ? Math.min(rawDuration, 1800)
         : 60;
     const rotSec =
-      Number.isFinite(rawRotSec) && rawRotSec >= 1 && rawRotSec <= 30
+      Number.isFinite(rawRotSec) && rawRotSec >= 0.5 && rawRotSec <= 30
         ? rawRotSec
         : 5;
 
     const startStr = startSec.toFixed(3);
     const durStr = durationSec.toFixed(3);
     const rotStr = rotSec.toFixed(3);
+    const autoFade = req.body?.autoFade === '1' || req.body?.autoFade === 'true';
+    const fadeDur = Math.min(1.0, durationSec * 0.4);
+    const fadeDurStr = fadeDur.toFixed(3);
+    const fadeOutStartStr = Math.max(0, durationSec - fadeDur).toFixed(3);
 
-    let outSize = 1080;
-    let outFps = 30;
+    const baseDims =
+      aspectRatio === '9:16'
+        ? { w: 1080, h: 1920 }
+        : aspectRatio === '16:9'
+          ? { w: 1920, h: 1080 }
+          : { w: 1080, h: 1080 };
+
+    const qScale = requestedQuality === 720 ? 720 / 1080 : 1;
+    let outW = Math.round((baseDims.w * qScale) / 2) * 2;
+    let outH = Math.round((baseDims.h * qScale) / 2) * 2;
+    let outFps = requestedFps;
     let videoKbps = null;
     let audioKbps = 192;
+
+    const hasAnyAudio = Boolean(audioFile || ambientFile);
 
     if (sizeMode === 'under19') {
       const targetBytes = 17_800_000;
       const totalBps = Math.floor((targetBytes * 8) / durationSec);
-      audioKbps = audioFile
+      audioKbps = hasAnyAudio
         ? (totalBps > 450_000 ? 128 : totalBps > 250_000 ? 96 : 64)
         : 0;
       videoKbps = Math.max(
@@ -100,10 +133,14 @@ app.post(
         Math.min(5000, Math.floor((totalBps - audioKbps * 1000 - 24_000) / 1000))
       );
       if (videoKbps < 600) {
-        outSize = 640;
+        const capScale = 640 / 1080;
+        outW = Math.round((baseDims.w * capScale) / 2) * 2;
+        outH = Math.round((baseDims.h * capScale) / 2) * 2;
         outFps = 24;
       } else if (videoKbps < 1400) {
-        outSize = 720;
+        const capScale = 720 / 1080;
+        outW = Math.round((baseDims.w * capScale) / 2) * 2;
+        outH = Math.round((baseDims.h * capScale) / 2) * 2;
         outFps = 30;
       }
     }
@@ -112,6 +149,7 @@ app.post(
 
     const args = [
       '-y',
+      '-xerror',
       '-loop', '1', '-framerate', fpsStr, '-t', durStr, '-i', bgFile.path,
       '-loop', '1', '-framerate', fpsStr, '-t', durStr, '-i', discFile.path,
     ];
@@ -123,21 +161,77 @@ app.post(
       args.push('-loop', '1', '-framerate', fpsStr, '-t', durStr, '-i', sheenFile.path);
     }
 
+    let overlayInputIndex = null;
+    if (overlayFile) {
+      overlayInputIndex = nextInputIndex++;
+      args.push('-loop', '1', '-framerate', fpsStr, '-t', durStr, '-i', overlayFile.path);
+    }
+
     let audioInputIndex = null;
     if (audioFile) {
       audioInputIndex = nextInputIndex++;
       args.push('-ss', startStr, '-t', durStr, '-i', audioFile.path);
     }
 
-    const scaleSuffix = outSize < 1080 ? `,scale=${outSize}:${outSize}:flags=lanczos` : '';
-    const filterComplex = sheenInputIndex !== null
-      ? `[1:v]format=rgba,rotate=2*PI*t/${rotStr}:fillcolor=none:ow=1080:oh=1080[rot];[0:v][rot]overlay=(W-w)/2:(H-h)/2:shortest=1[withdisc];[withdisc][${sheenInputIndex}:v]overlay=(W-w)/2:(H-h)/2:shortest=1${scaleSuffix}[outv]`
-      : `[1:v]format=rgba,rotate=2*PI*t/${rotStr}:fillcolor=none:ow=1080:oh=1080[rot];[0:v][rot]overlay=(W-w)/2:(H-h)/2:shortest=1${scaleSuffix}[outv]`;
+    let ambientInputIndex = null;
+    if (ambientFile) {
+      ambientInputIndex = nextInputIndex++;
+      args.push('-stream_loop', '-1', '-t', durStr, '-i', ambientFile.path);
+    }
+
+    const needRescale = outW !== baseDims.w || outH !== baseDims.h;
+    const scaleSuffix = needRescale ? `,scale=${outW}:${outH}:flags=lanczos` : '';
+    const videoFadeSuffix = autoFade
+      ? `,fade=t=in:st=0:d=${fadeDurStr}:color=#06070a,fade=t=out:st=${fadeOutStartStr}:d=${fadeDurStr}:color=#06070a`
+      : '';
+    const audioFadeSuffix = autoFade
+      ? `,afade=t=in:st=0:d=${fadeDurStr},afade=t=out:st=${fadeOutStartStr}:d=${fadeDurStr}`
+      : '';
+
+    const cyExpr = `${discCenterY.toFixed(4)}*H-h/2`;
+    let filterComplex = staticDisc
+      ? `[1:v]format=rgba[rot];[0:v][rot]overlay=(W-w)/2:${cyExpr}:shortest=1[cur0]`
+      : `[1:v]format=rgba,rotate=2*PI*t/${rotStr}:fillcolor=none:ow=iw:oh=ih[rot];[0:v][rot]overlay=(W-w)/2:${cyExpr}:shortest=1[cur0]`;
+
+    let curLabel = '[cur0]';
+    let stepNum = 1;
+    if (sheenInputIndex !== null) {
+      const nextLbl = `[cur${stepNum++}]`;
+      filterComplex += `;${curLabel}[${sheenInputIndex}:v]overlay=(W-w)/2:${cyExpr}:shortest=1${nextLbl}`;
+      curLabel = nextLbl;
+    }
+    if (overlayInputIndex !== null) {
+      const nextLbl = `[cur${stepNum++}]`;
+      filterComplex += `;${curLabel}[${overlayInputIndex}:v]overlay=0:0:shortest=1${nextLbl}`;
+      curLabel = nextLbl;
+    }
+    filterComplex += `;${curLabel}format=yuv420p${scaleSuffix}${videoFadeSuffix}[outv]`;
+
+    const mixAudio = audioInputIndex !== null && ambientInputIndex !== null;
+    let mappedAudioLabel = null;
+    if (mixAudio) {
+      filterComplex += `;[${audioInputIndex}:a][${ambientInputIndex}:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0${audioFadeSuffix}[outa]`;
+      mappedAudioLabel = '[outa]';
+    } else if (audioInputIndex !== null) {
+      if (autoFade) {
+        filterComplex += `;[${audioInputIndex}:a]afade=t=in:st=0:d=${fadeDurStr},afade=t=out:st=${fadeOutStartStr}:d=${fadeDurStr}[outa]`;
+        mappedAudioLabel = '[outa]';
+      } else {
+        mappedAudioLabel = `${audioInputIndex}:a`;
+      }
+    } else if (ambientInputIndex !== null) {
+      if (autoFade) {
+        filterComplex += `;[${ambientInputIndex}:a]afade=t=in:st=0:d=${fadeDurStr},afade=t=out:st=${fadeOutStartStr}:d=${fadeDurStr}[outa]`;
+        mappedAudioLabel = '[outa]';
+      } else {
+        mappedAudioLabel = `${ambientInputIndex}:a`;
+      }
+    }
 
     args.push('-filter_complex', filterComplex, '-map', '[outv]');
 
-    if (audioInputIndex !== null) {
-      args.push('-map', `${audioInputIndex}:a`, '-c:a', 'aac', '-b:a', `${audioKbps}k`);
+    if (mappedAudioLabel) {
+      args.push('-map', mappedAudioLabel, '-c:a', 'aac', '-b:a', `${audioKbps}k`);
     }
 
     args.push('-c:v', 'libx264');
@@ -149,7 +243,7 @@ app.post(
         '-bufsize', `${Math.round(videoKbps * 1.5)}k`
       );
     } else {
-      args.push('-preset', 'ultrafast', '-crf', '22');
+      args.push('-preset', 'ultrafast', '-crf', '21');
     }
 
     args.push(
@@ -162,6 +256,14 @@ app.post(
 
     const ffmpegProc = spawn('ffmpeg', args);
     let stderrLogs = '';
+    let timedOut = false;
+
+    const renderWatchdog = setTimeout(() => {
+      timedOut = true;
+      if (ffmpegProc.exitCode === null) {
+        ffmpegProc.kill('SIGKILL');
+      }
+    }, Math.max(120_000, Math.round(durationSec * 4000)));
 
     ffmpegProc.stderr.on('data', (chunk) => {
       if (stderrLogs.length < 4000) {
@@ -169,14 +271,16 @@ app.post(
       }
     });
 
-    req.on('close', () => {
-      if (!res.writableEnded && ffmpegProc.exitCode === null) {
+    res.on('close', () => {
+      if (!res.writableFinished && ffmpegProc.exitCode === null) {
+        clearTimeout(renderWatchdog);
         ffmpegProc.kill('SIGKILL');
         cleanup();
       }
     });
 
     ffmpegProc.on('error', (err) => {
+      clearTimeout(renderWatchdog);
       console.error('FFmpeg spawn error:', err);
       cleanup();
       if (!res.headersSent) {
@@ -185,17 +289,19 @@ app.post(
     });
 
     ffmpegProc.on('close', (code) => {
-      if (code !== 0) {
-        console.error('FFmpeg exited with code:', code, stderrLogs);
+      clearTimeout(renderWatchdog);
+      if (code !== 0 || timedOut) {
+        console.error('FFmpeg exited with code:', code, timedOut ? '(timeout)' : '', stderrLogs);
         cleanup();
         if (!res.headersSent) {
-          res.status(500).json({ error: 'Video rendering failed' });
+          res.status(500).json({ error: timedOut ? 'Video rendering timed out' : 'Video rendering failed' });
         }
         return;
       }
 
+      const dlName = `spinify-${aspectRatio.replace(':', 'x')}.mp4`;
       res.setHeader('Content-Type', 'video/mp4');
-      res.setHeader('Content-Disposition', 'attachment; filename="spinify-1x1.mp4"');
+      res.setHeader('Content-Disposition', `attachment; filename="${dlName}"`);
       const stream = fs.createReadStream(outPath);
       stream.on('error', () => {
         cleanup();
@@ -295,6 +401,9 @@ function buildZipBuffer(entries) {
 
 function collectProjectEntries() {
   const fixedFiles = [
+    '.gitignore',
+    'README.md',
+    'HANDOVER.md',
     'index.html',
     'package.json',
     'server.js',
@@ -352,6 +461,10 @@ app.get('/api/download-project.zip', (_req, res) => {
 
 app.get('/api/download-index', (_req, res) => {
   res.download(path.join(__dirname, 'index.html'), 'index.html');
+});
+
+app.get('/api/download-logo', (_req, res) => {
+  res.download(path.join(__dirname, 'public/spinify-logo.png'), 'spinify-logo.png');
 });
 
 app.get('/', (_req, res) => {

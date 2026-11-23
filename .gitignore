@@ -1,0 +1,15 @@
+node_modules/
+android/
+ios/
+www/
+dist/
+build/
+.env
+.env.*
+!.env.example
+bun.lock
+*.log
+.DS_Store
+Thumbs.db
+.aistudio/
+public/assets/aistudio/

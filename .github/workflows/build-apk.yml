@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -30,21 +33,59 @@ jobs:
 
       - name: Build Android APK via Capacitor
         run: |
-          npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+          npm install --no-save @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7 @capacitor/filesystem@^7
           if [ ! -d "android" ]; then
             npx cap add android
           fi
+          node -e '
+            const fs = require("fs");
+            const p = "android/app/src/main/AndroidManifest.xml";
+            let xml = fs.readFileSync(p, "utf8");
+            const perms = [
+              "<uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />",
+              "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />"
+            ];
+            for (const perm of perms) {
+              if (!xml.includes(perm)) {
+                xml = xml.replace("<application", perm + "\n    <application");
+              }
+            }
+            if (!xml.includes("android:requestLegacyExternalStorage")) {
+              xml = xml.replace("<application", "<application android:requestLegacyExternalStorage=\"true\"");
+            }
+            fs.writeFileSync(p, xml);
+
+            const bgPath = "android/app/src/main/res/values/ic_launcher_background.xml";
+            fs.mkdirSync("android/app/src/main/res/values", { recursive: true });
+            fs.writeFileSync(
+              bgPath,
+              "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <color name=\"ic_launcher_background\">#15191F</color>\n</resources>\n"
+            );
+          '
           npx cap sync android
+          IM_CMD=""
           if command -v convert >/dev/null 2>&1; then
+            IM_CMD="convert"
+          elif command -v magick >/dev/null 2>&1; then
+            IM_CMD="magick"
+          else
+            sudo apt-get update && sudo apt-get install -y imagemagick
+            if command -v convert >/dev/null 2>&1; then
+              IM_CMD="convert"
+            elif command -v magick >/dev/null 2>&1; then
+              IM_CMD="magick"
+            fi
+          fi
+          if [ -n "$IM_CMD" ]; then
             for pair in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
               dens="${pair%%:*}"
               sz="${pair##*:}"
               fg_sz=$((sz * 9 / 4))
               dir="android/app/src/main/res/mipmap-${dens}"
               mkdir -p "$dir"
-              convert public/pwa-512x512.png -resize "${sz}x${sz}" "$dir/ic_launcher.png"
-              convert public/pwa-512x512.png -resize "${sz}x${sz}" "$dir/ic_launcher_round.png"
-              convert public/pwa-maskable-512x512.png -resize "${fg_sz}x${fg_sz}" "$dir/ic_launcher_foreground.png"
+              "$IM_CMD" public/pwa-512x512.png -resize "${sz}x${sz}" "$dir/ic_launcher.png"
+              "$IM_CMD" public/pwa-512x512.png -resize "${sz}x${sz}" "$dir/ic_launcher_round.png"
+              "$IM_CMD" public/pwa-maskable-512x512.png -resize "${fg_sz}x${fg_sz}" "$dir/ic_launcher_foreground.png"
             done
           fi
           chmod +x android/gradlew
@@ -55,3 +96,4 @@ jobs:
         with:
           name: spinify-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
