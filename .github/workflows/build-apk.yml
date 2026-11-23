@@ -43,7 +43,9 @@ jobs:
             let xml = fs.readFileSync(p, "utf8");
             const perms = [
               "<uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />",
-              "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />"
+              "<uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\" />",
+              "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\" />",
+              "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"29\" />"
             ];
             for (const perm of perms) {
               if (!xml.includes(perm)) {
@@ -54,6 +56,17 @@ jobs:
               xml = xml.replace("<application", "<application android:requestLegacyExternalStorage=\"true\"");
             }
             fs.writeFileSync(p, xml);
+
+            const javaDir = "android/app/src/main/java/com/xleeix/spinify";
+            fs.mkdirSync(javaDir, { recursive: true });
+            fs.copyFileSync(
+              "scripts/android-native/SpinifyMediaPlugin.java",
+              javaDir + "/SpinifyMediaPlugin.java"
+            );
+            fs.writeFileSync(
+              javaDir + "/MainActivity.java",
+              "package com.xleeix.spinify;\n\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;\n\npublic class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(SpinifyMediaPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}\n"
+            );
 
             const bgPath = "android/app/src/main/res/values/ic_launcher_background.xml";
             fs.mkdirSync("android/app/src/main/res/values", { recursive: true });

@@ -410,6 +410,7 @@ function collectProjectEntries() {
     'metadata.json',
     'capacitor.config.json',
     'scripts/prepare-www.mjs',
+    'scripts/android-native/SpinifyMediaPlugin.java',
     '.github/workflows/build-apk.yml',
     'public/icon.svg',
     'public/manifest.json',

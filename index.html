@@ -3366,9 +3366,9 @@
         noTrackSelected: "لم يتم اختيار مقطع",
         useInMaker: "تحويل لفيديو",
         playbackSpeedLabel: "سرعة التشغيل (Tempo)",
-        permTitle: "قائمة التشغيل فارغة — السماح بالوصول للصوتيات",
-        permDesc: "امنح Spinify إذن الوصول إلى الملفات الصوتية على جهازك لعرض قائمة أغانيك وتشغيلها بأسلوب Spotify.",
-        permGrantBtn: "السماح بالوصول للصوتيات",
+        permTitle: "قائمة التشغيل فارغة — السماح بالوصول لكافة الصوتيات",
+        permDesc: "امنح Spinify إذن الوصول إلى كافة الملفات الصوتية في هاتفك لعرض مكتبة أغانيك كاملة وتشغيلها بأسلوب Spotify.",
+        permGrantBtn: "السماح بالوصول لكافة الصوتيات",
         permPickFilesBtn: "اختيار ملفات",
         botTipText: "تريد تحميل أغاني مجاناً؟ استخدم البوت على تيليجرام",
         addMoreTracks: "+ إضافة صوتيات",
@@ -3395,6 +3395,9 @@
         statusServerExport: "جارٍ تجهيز الفيديو بسرعة عبر الخادم...",
         statusDoneFull: (ratio) => `تم تنزيل الفيديو بالمساحة الكاملة بمقاس ${ratio}.`,
         statusDoneUnder19: (ratio) => `تم تنزيل الفيديو بحجم أقل من 19MB بمقاس ${ratio}.`,
+        statusSavingGallery: "جارٍ حفظ الفيديو في المعرض...",
+        statusSavedGallery: (ratio, path) => `تم حفظ الفيديو في المعرض (${path}) بمقاس ${ratio}.`,
+        statusGalleryFailed: "تعذر حفظ الفيديو في المعرض. تحقق من الأذونات وحاول مجدداً.",
         statusCancelled: "تم إلغاء التصدير.",
         statusFailed: "تعذر تصدير الفيديو. تأكد من سلامة الملفات وحاول مجدداً.",
         statusShared: "تمت مشاركة الفيديو بنجاح.",
@@ -3466,9 +3469,9 @@
         noTrackSelected: "No Track Selected",
         useInMaker: "Use in Maker",
         playbackSpeedLabel: "Playback Speed (Tempo)",
-        permTitle: "Playlist Empty — Allow Audio Access",
-        permDesc: "Grant Spinify access to audio files on your phone to display your playlist and play songs Spotify-style.",
-        permGrantBtn: "Allow Audio Access",
+        permTitle: "Playlist Empty — Allow Access to All Audio",
+        permDesc: "Grant Spinify permission to access all audio files on your phone to display your full music library Spotify-style.",
+        permGrantBtn: "Allow All Phone Audio",
         permPickFilesBtn: "Pick Files",
         botTipText: "Want free song downloads? Use Telegram bot",
         addMoreTracks: "+ Add Audio",
@@ -3495,6 +3498,9 @@
         statusServerExport: "Rendering fast on server...",
         statusDoneFull: (ratio) => `Full quality ${ratio} video downloaded.`,
         statusDoneUnder19: (ratio) => `Downloaded ${ratio} video under 19MB.`,
+        statusSavingGallery: "Saving video to Gallery...",
+        statusSavedGallery: (ratio, path) => `Saved ${ratio} video to Gallery (${path}).`,
+        statusGalleryFailed: "Could not save video to Gallery. Check permissions and try again.",
         statusCancelled: "Export cancelled.",
         statusFailed: "Could not export video. Check your files and try again.",
         statusShared: "Video shared successfully.",
@@ -3727,6 +3733,8 @@
     let exportAbortController = null;
     let lastExportedBlob = null;
     let lastExportedFilename = "spinify-1x1.mp4";
+    let lastExportedNativeUri = null;
+    let lastExportedDisplayPath = "";
     let simTime = 0;
     let discAngleDeg = 0;
     let beatEnergy = 0;
@@ -4465,6 +4473,81 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(dlUrl), 5000);
+    }
+
+    function getSpinifyMediaPlugin() {
+      if (!window.Capacitor) return null;
+      const isNative =
+        typeof window.Capacitor.isNativePlatform === "function"
+          ? window.Capacitor.isNativePlatform()
+          : Boolean(window.Capacitor.isNative);
+      if (!isNative) return null;
+      if (window.Capacitor.Plugins && window.Capacitor.Plugins.SpinifyMedia) {
+        return window.Capacitor.Plugins.SpinifyMedia;
+      }
+      if (typeof window.Capacitor.registerPlugin === "function") {
+        return window.Capacitor.registerPlugin("SpinifyMedia");
+      }
+      return null;
+    }
+
+    function uint8ToBase64(bytes) {
+      let binary = "";
+      const sliceSize = 0x2000;
+      for (let i = 0; i < bytes.length; i += sliceSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + sliceSize));
+      }
+      return btoa(binary);
+    }
+
+    async function saveExportedBlob(blob, baseFilename) {
+      const spinifyMedia = getSpinifyMediaPlugin();
+      if (!spinifyMedia) {
+        lastExportedNativeUri = null;
+        lastExportedDisplayPath = "";
+        triggerBlobDownload(blob, baseFilename);
+        return false;
+      }
+
+      statusNote.textContent = t("statusSavingGallery");
+      const dotIdx = baseFilename.lastIndexOf(".");
+      const stem = dotIdx > 0 ? baseFilename.slice(0, dotIdx) : baseFilename;
+      const ext = dotIdx > 0 ? baseFilename.slice(dotIdx) : ".mp4";
+      const stampedName = `${stem}-${Date.now()}${ext}`;
+      const mimeType = blob.type || (ext === ".webm" ? "video/webm" : "video/mp4");
+
+      const { uploadId } = await spinifyMedia.beginVideoFile({
+        fileName: stampedName,
+        mimeType,
+      });
+
+      try {
+        const chunkBytes = 393216;
+        for (let offset = 0; offset < blob.size; offset += chunkBytes) {
+          if (exportAbortRequested) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+          const slice = blob.slice(offset, Math.min(blob.size, offset + chunkBytes));
+          const bytes = new Uint8Array(await slice.arrayBuffer());
+          const base64 = uint8ToBase64(bytes);
+          await spinifyMedia.appendVideoChunk({ uploadId, base64 });
+        }
+
+        const res = await spinifyMedia.commitVideoToGallery({
+          uploadId,
+          fileName: stampedName,
+          mimeType,
+        });
+        lastExportedNativeUri = (res && res.uri) || null;
+        lastExportedDisplayPath = (res && res.displayPath) || `Movies/Spinify/${stampedName}`;
+        lastExportedFilename = stampedName;
+        return true;
+      } catch (err) {
+        try {
+          await spinifyMedia.discardVideoUpload({ uploadId });
+        } catch (_) {}
+        throw err;
+      }
     }
 
     let chimeAudioCtx = null;
@@ -5932,7 +6015,7 @@
         const filename = `spinify-${ratioSlug}.${ext}`;
         lastExportedBlob = blob;
         lastExportedFilename = filename;
-        triggerBlobDownload(blob, filename);
+        await saveExportedBlob(blob, filename);
         return true;
       } finally {
         try {
@@ -5942,6 +6025,155 @@
           if (audioEncoder && audioEncoder.state !== "closed") audioEncoder.close();
         } catch (_) {}
       }
+    }
+
+    async function exportWithMediaRecorder(layout, bgCanvas, discCanvas, sheenCanvas, startSec, durationSec) {
+      if (typeof MediaRecorder !== "function" || typeof HTMLCanvasElement.prototype.captureStream !== "function") {
+        return false;
+      }
+      const plan = getExportPlan(durationSec, Boolean(uploadedAudioFile || getAmbientGainLevel() > 0), layout);
+      const fps = Math.min(30, plan.fps || 30);
+      const recCanvas = document.createElement("canvas");
+      recCanvas.width = plan.width;
+      recCanvas.height = plan.height;
+      const recCtx = recCanvas.getContext("2d");
+
+      const mimeCandidates = [
+        "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+        "video/mp4",
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+      ];
+      const chosenMime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+      const videoStream = recCanvas.captureStream(fps);
+      const tracks = [...videoStream.getVideoTracks()];
+
+      let recAudioCtx = null;
+      let recSource = null;
+      const hasMainAudio = Boolean(uploadedAudioFile);
+      const hasAmbient = getAmbientGainLevel() > 0;
+      if (hasMainAudio || hasAmbient) {
+        try {
+          const decoded = hasMainAudio ? await getDecodedAudioBuffer() : null;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          recAudioCtx = new AudioCtx();
+          const dest = recAudioCtx.createMediaStreamDestination();
+          if (decoded || hasAmbient) {
+            const mixed = await renderMixedExportAudio(decoded, startSec, durationSec, 2, recAudioCtx.sampleRate);
+            recSource = recAudioCtx.createBufferSource();
+            recSource.buffer = mixed;
+            recSource.connect(dest);
+            tracks.push(...dest.stream.getAudioTracks());
+          }
+        } catch (_) {}
+      }
+
+      const combinedStream = new MediaStream(tracks);
+      const chunks = [];
+      const recorder = new MediaRecorder(
+        combinedStream,
+        chosenMime
+          ? { mimeType: chosenMime, videoBitsPerSecond: plan.videoBitrate }
+          : { videoBitsPerSecond: plan.videoBitrate }
+      );
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const rotPerSec = (Math.PI * 2) / SPEED_PRESETS[selectedSpeed].rotSec;
+      const tonearmEnabled = Boolean(tonearmCheckbox.checked);
+      const fadeEnabled = Boolean(autoFadeCheckbox.checked);
+      const fadeDur = fadeEnabled ? Math.min(1.0, durationSec * 0.4) : 0;
+      const armMoveDur = Math.min(0.65, durationSec * 0.25);
+
+      const scaleX = plan.width / layout.vw;
+      const scaleY = plan.height / layout.vh;
+      const discCx = layout.vw / 2;
+      const discCy = layout.vh * layout.discCenterY;
+
+      await new Promise((resolve, reject) => {
+        recorder.onerror = (ev) => reject(ev.error || new Error("MediaRecorder failed"));
+        recorder.onstop = resolve;
+        recorder.start(250);
+        if (recSource) {
+          try { recSource.start(0); } catch (_) {}
+        }
+
+        const t0 = performance.now();
+        const step = () => {
+          if (exportAbortRequested) {
+            try { recorder.stop(); } catch (_) {}
+            reject(new DOMException("Aborted", "AbortError"));
+            return;
+          }
+          const tSec = (performance.now() - t0) / 1000;
+          const clampedT = Math.min(durationSec, tSec);
+
+          recCtx.save();
+          recCtx.scale(scaleX, scaleY);
+          recCtx.drawImage(bgCanvas, 0, 0, layout.vw, layout.vh);
+
+          if (selectedDiscStyle === "cassette") {
+            drawCassetteFrameOnContext(recCtx, discCx, discCy, layout.discSize, clampedT * rotPerSec);
+          } else {
+            recCtx.save();
+            recCtx.translate(discCx, discCy);
+            recCtx.rotate(clampedT * rotPerSec);
+            recCtx.drawImage(discCanvas, -discCanvas.width / 2, -discCanvas.height / 2);
+            recCtx.restore();
+            recCtx.drawImage(sheenCanvas, discCx - sheenCanvas.width / 2, discCy - sheenCanvas.height / 2);
+          }
+
+          if (tonearmEnabled && selectedDiscStyle !== "cassette") {
+            let armAngle = 3;
+            if (clampedT < armMoveDur) {
+              const p = clampedT / Math.max(0.01, armMoveDur);
+              armAngle = -30 + 33 * (1 - Math.pow(1 - p, 3));
+            } else if (clampedT > durationSec - armMoveDur) {
+              const p = (clampedT - (durationSec - armMoveDur)) / Math.max(0.01, armMoveDur);
+              armAngle = 3 - 33 * Math.pow(p, 2);
+            }
+            drawTonearmOnContext(recCtx, discCx, discCy, layout.discSize, armAngle);
+          }
+          drawCaptionOnContext(recCtx, layout);
+          if (fadeEnabled && fadeDur > 0.01) {
+            let fadeAlpha = 0;
+            if (clampedT < fadeDur) fadeAlpha = 1 - clampedT / fadeDur;
+            else if (clampedT > durationSec - fadeDur) fadeAlpha = (clampedT - (durationSec - fadeDur)) / fadeDur;
+            if (fadeAlpha > 0.004) {
+              recCtx.fillStyle = `rgba(6, 7, 10, ${Math.min(1, Math.max(0, fadeAlpha)).toFixed(4)})`;
+              recCtx.fillRect(0, 0, layout.vw, layout.vh);
+            }
+          }
+          recCtx.restore();
+
+          const pct = Math.min(99, Math.round((clampedT / durationSec) * 100));
+          statusNote.textContent = t("statusExportingPct", pct);
+          progressFill.style.width = `${pct}%`;
+
+          if (tSec >= durationSec) {
+            try { recorder.stop(); } catch (_) {}
+            return;
+          }
+          requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }).finally(() => {
+        try { if (recSource) recSource.stop(); } catch (_) {}
+        try { if (recAudioCtx) recAudioCtx.close(); } catch (_) {}
+        combinedStream.getTracks().forEach((tr) => tr.stop());
+      });
+
+      const finalMime = (chunks[0] && chunks[0].type) || chosenMime || "video/webm";
+      const isMp4 = finalMime.includes("mp4");
+      const blob = new Blob(chunks, { type: isMp4 ? "video/mp4" : "video/webm" });
+      const ratioSlug = layout.ratio.replace(":", "x");
+      const filename = `spinify-${ratioSlug}.${isMp4 ? "mp4" : "webm"}`;
+      lastExportedBlob = blob;
+      lastExportedFilename = filename;
+      await saveExportedBlob(blob, filename);
+      return true;
     }
 
     async function exportWithServerFfmpeg(layout, bgCanvas, discCanvas, sheenCanvas, startSec, durationSec, signal) {
@@ -5996,16 +6228,30 @@
       const filename = `spinify-${ratioSlug}.mp4`;
       lastExportedBlob = videoBlob;
       lastExportedFilename = filename;
-      triggerBlobDownload(videoBlob, filename);
+      await saveExportedBlob(videoBlob, filename);
     }
 
     async function shareExportedVideo() {
-      if (!lastExportedBlob) return;
-      const mime = lastExportedBlob.type || "video/mp4";
-      const file = new File([lastExportedBlob], lastExportedFilename, { type: mime });
+      if (!lastExportedBlob && !lastExportedNativeUri) return;
+      const mime = (lastExportedBlob && lastExportedBlob.type) || "video/mp4";
       const titleText = mainTitleInput.value.trim() || "Spinify";
+      const spinifyMedia = getSpinifyMediaPlugin();
 
-      if (navigator.share) {
+      if (spinifyMedia && lastExportedNativeUri) {
+        try {
+          await spinifyMedia.shareVideoUri({
+            uri: lastExportedNativeUri,
+            title: titleText,
+            text: "Spinify — @xleeix",
+            mimeType: mime,
+          });
+          statusNote.textContent = t("statusShared");
+          return;
+        } catch (_) {}
+      }
+
+      if (lastExportedBlob && navigator.share) {
+        const file = new File([lastExportedBlob], lastExportedFilename, { type: mime });
         try {
           if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
             throw new Error("File share unsupported");
@@ -6025,7 +6271,9 @@
         }
       }
 
-      triggerBlobDownload(lastExportedBlob, lastExportedFilename);
+      if (lastExportedBlob) {
+        await saveExportedBlob(lastExportedBlob, lastExportedFilename);
+      }
       statusNote.textContent = t("statusShareFallback");
     }
 
@@ -6047,6 +6295,9 @@
       isExporting = true;
       exportAbortRequested = false;
       exportAbortController = new AbortController();
+      lastExportedBlob = null;
+      lastExportedNativeUri = null;
+      lastExportedDisplayPath = "";
       shareVideoBtn.classList.remove("visible");
       downloadVideoBtn.classList.add("recording");
       downloadVideoText.textContent = t("cancelExport");
@@ -6068,33 +6319,48 @@
           exported = await exportWithWebCodecs(layout, bgCanvas, discCanvas, sheenCanvas, start, durationSec);
         } catch (err) {
           if (err && err.name === "AbortError") throw err;
+          if (lastExportedBlob && getSpinifyMediaPlugin() && !lastExportedNativeUri) {
+            throw err;
+          }
           exported = false;
         }
 
         if (!exported) {
           if (exportAbortRequested) throw new DOMException("Aborted", "AbortError");
-          await exportWithServerFfmpeg(
-            layout,
-            bgCanvas,
-            discCanvas,
-            sheenCanvas,
-            start,
-            durationSec,
-            exportAbortController.signal
-          );
+          if (getSpinifyMediaPlugin()) {
+            const recDone = await exportWithMediaRecorder(layout, bgCanvas, discCanvas, sheenCanvas, start, durationSec);
+            if (!recDone) throw new Error("MediaRecorder unsupported");
+          } else {
+            await exportWithServerFfmpeg(
+              layout,
+              bgCanvas,
+              discCanvas,
+              sheenCanvas,
+              start,
+              durationSec,
+              exportAbortController.signal
+            );
+          }
         }
 
-        if (lastExportedBlob) {
+        if (lastExportedBlob || lastExportedNativeUri) {
           shareVideoBtn.classList.add("visible");
         }
         playExportSuccessChime();
-        statusNote.textContent =
-          selectedSizeMode === "under19"
-            ? t("statusDoneUnder19", layout.ratio)
-            : t("statusDoneFull", layout.ratio);
+        if (lastExportedNativeUri) {
+          statusNote.textContent = t("statusSavedGallery", layout.ratio, lastExportedDisplayPath || "Movies/Spinify");
+        } else {
+          statusNote.textContent =
+            selectedSizeMode === "under19"
+              ? t("statusDoneUnder19", layout.ratio)
+              : t("statusDoneFull", layout.ratio);
+        }
       } catch (err) {
         if (err && err.name === "AbortError") {
           statusNote.textContent = t("statusCancelled");
+        } else if (lastExportedBlob && getSpinifyMediaPlugin() && !lastExportedNativeUri) {
+          shareVideoBtn.classList.add("visible");
+          statusNote.textContent = t("statusGalleryFailed");
         } else {
           statusNote.textContent = t("statusFailed");
         }
@@ -6386,6 +6652,27 @@
       });
     }
 
+    async function resolveTrackPlayableSource(track) {
+      if (!track) return "";
+      if (track.srcUrl) return track.srcUrl;
+      const spinifyMedia = getSpinifyMediaPlugin();
+      if (spinifyMedia && track.contentUri) {
+        const res = await spinifyMedia.readAudioBase64({ contentUri: track.contentUri });
+        if (res && res.base64) {
+          const bin = atob(res.base64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const blob = new Blob([bytes], { type: track.mimeType || "audio/mpeg" });
+          track.file = new File([blob], track.filename || `${track.name}.mp3`, {
+            type: track.mimeType || "audio/mpeg",
+          });
+          track.srcUrl = URL.createObjectURL(blob);
+          return track.srcUrl;
+        }
+      }
+      return "";
+    }
+
     async function loadAndPlayTrack(index, autoPlay = true) {
       if (index < 0 || index >= playerTracks.length) return;
       const track = playerTracks[index];
@@ -6394,6 +6681,12 @@
       playerNowTitle.textContent = track.name;
       sendTrackToMakerBtn.disabled = false;
 
+      if (!track.srcUrl && track.contentUri) {
+        try {
+          await resolveTrackPlayableSource(track);
+        } catch (_) {}
+      }
+
       if (track.file) {
         uploadedAudioFile = track.file;
         decodedAudioCache = null;
@@ -6401,7 +6694,7 @@
         audioPickerText.textContent = t("audioReady");
       }
 
-      audioPlayer.src = track.srcUrl;
+      audioPlayer.src = track.srcUrl || "";
       audioPlayer.playbackRate = appMode === "player" ? playerPlaybackRate : 1;
       audioPlayer.currentTime = 0;
       simTime = 0;
@@ -6549,6 +6842,39 @@
     async function requestPhoneAudioPermissionAndScan() {
       playerStatusNote.textContent = t("permScanning");
 
+      const spinifyMedia = getSpinifyMediaPlugin();
+      if (spinifyMedia && typeof spinifyMedia.requestAllAudioAndScan === "function") {
+        try {
+          const res = await spinifyMedia.requestAllAudioAndScan();
+          const rawTracks = (res && Array.isArray(res.tracks)) ? res.tracks : [];
+          const mapped = rawTracks.map((item) => {
+            const filename = item.filename || "Track.mp3";
+            const srcUrl =
+              item.fileUri && window.Capacitor && typeof window.Capacitor.convertFileSrc === "function"
+                ? window.Capacitor.convertFileSrc(item.fileUri)
+                : "";
+            return {
+              key: `ms:${item.id || item.contentUri || filename}`,
+              name: item.title ? item.title : cleanTrackTitle(filename),
+              filename,
+              ext: getTrackExt(filename),
+              file: null,
+              srcUrl,
+              contentUri: item.contentUri || "",
+              mimeType: item.mimeType || "audio/mpeg",
+            };
+          });
+          appendTracksToLibrary(mapped);
+          return;
+        } catch (err) {
+          const msg = String((err && err.message) || err || "");
+          if (/denied|permission/i.test(msg)) {
+            playerStatusNote.textContent = t("permDenied");
+            return;
+          }
+        }
+      }
+
       const capFs = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
       if (capFs) {
         try {
@@ -6601,12 +6927,19 @@
       if (activeTrackIndex < 0 || !playerTracks[activeTrackIndex]) return;
       const track = playerTracks[activeTrackIndex];
       try {
-        if (!track.file && track.srcUrl) {
-          const resp = await fetch(track.srcUrl);
-          const blob = await resp.blob();
-          track.file = new File([blob], track.filename || `${track.name}.mp3`, {
-            type: blob.type || "audio/mpeg",
-          });
+        if (!track.file) {
+          if (track.srcUrl) {
+            try {
+              const resp = await fetch(track.srcUrl);
+              const blob = await resp.blob();
+              track.file = new File([blob], track.filename || `${track.name}.mp3`, {
+                type: blob.type || track.mimeType || "audio/mpeg",
+              });
+            } catch (_) {}
+          }
+          if (!track.file && track.contentUri) {
+            await resolveTrackPlayableSource(track);
+          }
         }
         if (track.file) {
           uploadedAudioFile = track.file;
